@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modbus Master Setup</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dropdown" style="position: absolute; top: 0; left: 2%;">
+        <button class="dropdown-button">&#9776;</button>
+        <div class="dropdown-content">
+            <button id="button_configured_sensor">CONFIGURED SENSOR</button>
+            <button id="button_network">NETWORK</button>
+            <button id="button_interfaces">MODBUS MASTER</button>
+            <button id="button_sensors">ADD SENSORS</button>
+            <button id="button_site_setup">SITE SETUP</button>
+            <button id="button_time_setup">TIME SETUP</button>
+            <button id="button_cloud_setup">CLOUD SETUP</button>
+            <button id="button_OTA">FIRMWARE UPDATE</button>
+        </div>
+    </div>
+    <div class="container">
+
+        <h2>Modbus Master Setup</h2>
+        <img src="logo.png" alt="TMR logo">
+
+        <h3>Modbus RTU Master</h3>
+        <label for="modbus_baudrate">Modbus Baudrate</label>
+        <select name="modbus_baudrate" id="modbus_baudrate">
+            <option value="300">300</option>
+            <option value="600">600</option>
+            <option value="1200">1200</option>
+            <option value="2400">2400</option>
+            <option value="4800">4800</option>
+            <option value="9600" selected>9600</option>
+            <option value="14400">14400</option>
+            <option value="19200">19200</option>
+            <option value="28800">28800</option>
+            <option value="31250">31250</option> <!-- used in MIDI & some devices -->
+            <option value="38400">38400</option>
+            <option value="57600">57600</option>
+            <option value="76800">76800</option>
+            <option value="115200">115200</option>
+            <option value="128000">128000</option>
+            <option value="230400">230400</option>
+            <option value="250000">250000</option>
+            <option value="460800">460800</option>
+            <option value="500000">500000</option>
+            <option value="921600">921600</option>
+            <option value="1000000">1000000</option>
+            <option value="1500000">1500000</option>
+            <option value="2000000">2000000</option>
+            <option value="3000000">3000000</option>
+            <option value="4000000">4000000</option>
+        </select>
+
+        <label for="modbus_parity">Modbus Parity</label>
+        <select name="modbus_parity" id="modbus_parity">
+            <option value="N" selected>None</option>
+            <option value="E">Event</option>
+            <option value="O">Odd</option>
+        </select>
+        <label for="modbus_databit">Modbus Databit</label>
+        <select name="modbus_databit" id="modbus_databit">
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8" selected>8</option>
+        </select>
+        <label for="modbus_stopbit">Modbus Stopbit</label>
+        <select name="modbus_stopbit" id="modbus_stopbit">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+        </select>
+
+
+        <button id="button_save">SAVE</button>
+    </div>
+</body>
+<script src="beacon.js"></script>
+<script>
+    var base_url = window.location.origin;
+    let urlScan = base_url + '/scan';
+
+
+    document.getElementById("button_network").onclick = () => {
+        window.location = base_url + '/net-form.html';
+    }
+    document.getElementById("button_interfaces").onclick = () => {
+        window.location = base_url + '/interfaces.html';
+    }
+    document.getElementById("button_sensors").onclick = () => {
+        window.location = base_url + '/sensors.html';
+    }
+    document.getElementById("button_site_setup").onclick = () => {
+        window.location = base_url + '/site_setup.html';
+    }
+    document.getElementById("button_time_setup").onclick = () => {
+        window.location = base_url + '/time_setup.html';
+    }
+    document.getElementById("button_cloud_setup").onclick = () => {
+        window.location = base_url + '/cloud_setup.html';
+    }
+    document.getElementById("button_OTA").onclick = () => {
+        window.location = base_url + '/OTA.html';
+    }
+    document.getElementById("button_configured_sensor").onclick = () => {
+        window.location = base_url + '/data_viewer.html';
+    }
+    document.getElementById("button_save").onclick = () => {
+        let urlScan = base_url + '/update-serial-com';
+        let baudSelector = document.getElementById("modbus_baudrate");
+        let paritySelector = document.getElementById("modbus_parity");
+        let databitSelector = document.getElementById("modbus_databit");
+        let stopbitSelector = document.getElementById("modbus_stopbit");
+
+
+
+        let data = {
+            baudrate: `${baudSelector.value}`,
+            mode: `SERIAL_${databitSelector.value}${paritySelector.value}${stopbitSelector.value}`
+        };
+
+        for (const key in data) {
+            if (data[key].length < 1) {
+                alert("form not filled completely");
+                return;
+            }
+        }
+
+        console.log(data);
+
+        fetch(urlScan, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        })
+            .then(res => res.json())
+            .then((out) => {
+                console.log("Server responded:", out);
+            })
+            .catch(err => console.log(err));
+
+    }
+</script>
+
+</html>

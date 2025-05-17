@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Time Setup</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dropdown" style="position: absolute; top: 0; left: 2%;">
+        <button class="dropdown-button">&#9776;</button>
+        <div class="dropdown-content">
+            <button id="button_configured_sensor">CONFIGURED SENSOR</button>
+            <button id="button_network">NETWORK</button>
+            <button id="button_interfaces">MODBUS MASTER</button>
+            <button id="button_sensors">ADD SENSORS</button>
+            <button id="button_site_setup">SITE SETUP</button>
+            <button id="button_time_setup">TIME SETUP</button>
+            <button id="button_cloud_setup">CLOUD SETUP</button>
+            <button id="button_OTA">FIRMWARE UPDATE</button>
+        </div>
+    </div>
+    <div class="container">
+
+        <h2>Time Setup</h2>
+        <img src="logo.png" alt="TMR logo">
+
+        <label for="time_source">Time Source</label>
+        <select name="time_source" id="time_source">
+            <option value="NTP" selected>NTP</option>
+            <option value="RTC">RTC</option>
+        </select>
+        <div id="ntp_server_group">
+            <label for="ntp_server">NTP Server</label>
+            <input type="text" name="ntp_server" id="ntp_server" value="pool.ntp.org">
+        </div>
+        <label for="time_zone">Time Zone</label>
+        <select name="time_zone" id="time_zone">
+            <option value="-12">GMT-12:00</option>
+            <option value="-11">GMT-11:00</option>
+            <option value="-10">GMT-10:00</option>
+            <option value="-9">GMT-09:00</option>
+            <option value="-8">GMT-08:00</option>
+            <option value="-7">GMT-07:00</option>
+            <option value="-6">GMT-06:00</option>
+            <option value="-5">GMT-05:00</option>
+            <option value="-4">GMT-04:00</option>
+            <option value="-3.5">GMT-03:30</option>
+            <option value="-3">GMT-03:00</option>
+            <option value="-2">GMT-02:00</option>
+            <option value="-1">GMT-01:00</option>
+            <option value="0">GMT+00:00</option>
+            <option value="1">GMT+01:00</option>
+            <option value="2">GMT+02:00</option>
+            <option value="3">GMT+03:00</option>
+            <option value="3.5">GMT+03:30</option>
+            <option value="4">GMT+04:00</option>
+            <option value="4.5">GMT+04:30</option>
+            <option value="5">GMT+05:00</option>
+            <option value="5.5">GMT+05:30</option>
+            <option value="5.75">GMT+05:45</option>
+            <option value="6">GMT+06:00</option>
+            <option value="6.5">GMT+06:30</option>
+            <option value="7" selected>GMT+07:00</option>
+            <option value="8">GMT+08:00</option>
+            <option value="8.75">GMT+08:45</option>
+            <option value="9">GMT+09:00</option>
+            <option value="9.5">GMT+09:30</option>
+            <option value="10">GMT+10:00</option>
+            <option value="10.5">GMT+10:30</option>
+            <option value="11">GMT+11:00</option>
+            <option value="12">GMT+12:00</option>
+            <option value="12.75">GMT+12:45</option>
+            <option value="13">GMT+13:00</option>
+            <option value="14">GMT+14:00</option>
+        </select>
+
+
+
+        <button id="button_save">SAVE</button>
+    </div>
+</body>
+<script src="beacon.js"></script>
+<script>
+    var base_url = window.location.origin;
+    let urlScan = base_url + '/scan';
+
+    // Redirect buttons
+    document.getElementById("button_network").onclick = () => {
+        window.location = base_url + '/net-form.html';
+    }
+    document.getElementById("button_sensors").onclick = () => {
+        window.location = base_url + '/sensors.html';
+    }
+    document.getElementById("button_interfaces").onclick = () => {
+        window.location = base_url + '/interfaces.html';
+    }
+    document.getElementById("button_site_setup").onclick = () => {
+        window.location = base_url + '/site_setup.html';
+    }
+    document.getElementById("button_time_setup").onclick = () => {
+        window.location = base_url + '/time_setup.html';
+    }
+    document.getElementById("button_cloud_setup").onclick = () => {
+        window.location = base_url + '/cloud_setup.html';
+    }
+    document.getElementById("button_OTA").onclick = () => {
+        window.location = base_url + '/OTA.html';
+    }
+    document.getElementById("button_configured_sensor").onclick = () => {
+        window.location = base_url + '/data_viewer.html';
+    }
+
+    // Save button (for wireless settings, looks like legacy code?)
+    document.getElementById("button_save").onclick = () => {
+        let urlScan = base_url + '/update-time';
+        let timeSourceSelector = document.getElementById("time_source");
+        let ntpServerSelector = document.getElementById("ntp_server");
+        let timeZoneSelector = document.getElementById("time_zone");
+
+
+
+        let data = {
+            time_source: `${timeSourceSelector.value}`,
+            ntp_server: `${ntpServerSelector.value}`,
+            time_zone: `${timeZoneSelector.value}`
+        };
+        for (const key in data) {
+            if (data[key].length < 1) {
+                alert("form not filled completely");
+                return;
+            }
+        }
+
+        console.log(data);
+
+        fetch(urlScan, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        })
+            .then(res => res.json())
+            .then((out) => {
+                alert("Setup Success!");
+            })
+            .catch(err => alert("ERROR! response timeout"));
+
+    }
+
+    const timeSourceSelect = document.getElementById('time_source');
+    const ntpServerGroup = document.getElementById('ntp_server_group');
+
+    // Hide initially
+    ntpServerGroup.style.display = 'none';
+
+    timeSourceSelect.addEventListener('change', () => {
+        if (timeSourceSelect.value === 'NTP') {
+            ntpServerGroup.style.display = 'block';
+        } else {
+            ntpServerGroup.style.display = 'none';
+        }
+    });
+
+
+</script>
+
+
+</html>

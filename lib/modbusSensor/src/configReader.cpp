@@ -1,0 +1,370 @@
+#include "TMRSensor.h"
+
+String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &mbInterface)
+{
+    String sensorsData[50] = {};
+    uint8_t sensorsIndex = 0;
+    // Serial.println(jsonString);
+    DynamicJsonDocument doc(2048);
+
+    // Deserialize the JSON string into the document
+    DeserializationError error = deserializeJson(doc, _jsonString);
+    if (error)
+    {
+        Serial.print("deserializeJson() failed: ");
+        Serial.println(error.c_str());
+    }
+
+    // Access values
+    JsonArray sensorArray = doc["sensor"];
+    // Iterate through each sensor in the array
+
+    for (JsonObject sensor : sensorArray)
+    {
+        String sensorData;
+        // Basic Info
+        const char *tag = sensor["tag_name"];
+        const char *phy = sensor["phy"]["channel"];
+
+        // Modbus
+        const char *device_id = sensor["modbus"]["modbus_device_id"];
+        const char *reg = sensor["modbus"]["modbus_reg"];
+        const char *offset = sensor["modbus"]["modbus_offset"];
+        const char *reg_type = sensor["modbus"]["modbus_reg_type"];
+        const char *dtype = sensor["modbus"]["modbus_dtype"];
+        const char *hardware_channel = sensor["modbus"]["hardware_channel"];
+        const char *mbBigEndian = sensor["modbus"]["big_endian"];
+
+        // Calibration
+        const char *calibration_mode = sensor["calibration"]["calibration_mode"];
+        const char *offset_val = sensor["calibration"]["offset"];
+        const char *readout_min = sensor["calibration"]["readout_min"];
+        const char *readout_max = sensor["calibration"]["readout_max"];
+        const char *actual_min = sensor["calibration"]["actual_min"];
+        const char *actual_max = sensor["calibration"]["actual_max"];
+        const char *k_factor = sensor["calibration"]["k_factor"];
+        const char *sensitivity = sensor["calibration"]["sensitivity"];
+
+        // Digital input
+        const char *di_ch = sensor["digital"]["di_ch"];
+
+        // Analog input
+        const char *ai_ch = sensor["analog"]["ai_ch"];
+
+        uint16_t dataType;
+        if (dtype == "UINT16")
+            dataType = MODBUS_UINT16;
+        else if (dtype == "INT16")
+            dataType = MODBUS_INT16;
+        else if (dtype == "UINT32")
+            dataType = MODBUS_UINT32;
+        else if (dtype == "INT32")
+            dataType = MODBUS_INT32;
+        else if (dtype == "FLOAT")
+            dataType = MODBUS_FLOAT;
+        else if (dtype == "DOUBLE")
+            dataType = MODBUS_DOUBLE;
+        else
+            dataType = MODBUS_UINT16;
+
+        uint8_t regType;
+        if (reg_type == "HREG")
+            regType = HREG;
+        else if (reg_type == "IREG")
+            regType = IREG;
+        else if (reg_type == "COIL")
+            regType = COIL;
+        else
+            regType = HREG;
+
+        uint8_t bigEndian;
+        if (mbBigEndian == "TRUE")
+            bigEndian = true;
+        else
+            bigEndian = false;
+
+        // debuger.debug(String(phy));
+        if (String(phy) == "modbus")
+        {
+            if (String(calibration_mode) == "1") // kFactor
+                sensorData = sensManager.readModbusKF(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor));
+            else if (String(calibration_mode) == "2") // sensitivity
+                sensorData = sensManager.readModbus(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(sensitivity));
+            else if (String(calibration_mode) == "3") // two-points callibration
+                sensorData = sensManager.readModbus(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
+            else
+                sensorData = sensManager.readModbus(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor));
+        }
+        sensorsData[sensorsIndex] = sensorData;
+        sensorsIndex++;
+        // Serial.print("index: ");
+        // Serial.print(sensorsIndex);
+        // Serial.print(" data: ");
+        // Serial.println(sensorData);
+    }
+
+    // Create JSON document
+    String jsonOutput;
+    jsonOutput += "{\"sensors\":[";
+    for (size_t i = 0; i < sensorsIndex; i++)
+    {
+        if (i > 0)
+        {
+            jsonOutput += ",";
+        }
+        jsonOutput += (sensorsData[i]);
+    }
+    jsonOutput += "]}";
+    return jsonOutput;
+}
+void configReader::loadFile()
+{
+    SPIFFS.begin();
+    vTaskDelay(100);
+    File file;
+    file = SPIFFS.open("/sensor.json");
+    _jsonString = file.readString();
+    file.close();
+}
+
+void configReader::checkUpdate(bool *sensorUpdateFlag)
+{
+    if (*sensorUpdateFlag == true) // update sesor configuration if network manager sensor update flag is active
+    {
+        this->loadFile();
+        *sensorUpdateFlag = false;
+    }
+}
+
+int configReader::getSerialMode()
+{
+    int mode;
+    if (_serialMode == "SERIAL_5N1")
+        mode = SERIAL_5N1;
+    else if (_serialMode == "SERIAL_6N1")
+        mode = SERIAL_6N1;
+    else if (_serialMode == "SERIAL_7N1")
+        mode = SERIAL_7N1;
+    else if (_serialMode == "SERIAL_8N1")
+        mode = SERIAL_8N1;
+    else if (_serialMode == "SERIAL_5N2")
+        mode = SERIAL_5N2;
+    else if (_serialMode == "SERIAL_6N2")
+        mode = SERIAL_6N2;
+    else if (_serialMode == "SERIAL_7N2")
+        mode = SERIAL_7N2;
+    else if (_serialMode == "SERIAL_8N2")
+        mode = SERIAL_8N2;
+    else if (_serialMode == "SERIAL_5E1")
+        mode = SERIAL_5E1;
+    else if (_serialMode == "SERIAL_6E1")
+        mode = SERIAL_6E1;
+    else if (_serialMode == "SERIAL_7E1")
+        mode = SERIAL_7E1;
+    else if (_serialMode == "SERIAL_8E1")
+        mode = SERIAL_8E1;
+    else if (_serialMode == "SERIAL_5E2")
+        mode = SERIAL_5E2;
+    else if (_serialMode == "SERIAL_6E2")
+        mode = SERIAL_6E2;
+    else if (_serialMode == "SERIAL_7E2")
+        mode = SERIAL_7E2;
+    else if (_serialMode == "SERIAL_8E2")
+        mode = SERIAL_8E2;
+    else if (_serialMode == "SERIAL_5O1")
+        mode = SERIAL_5O1;
+    else if (_serialMode == "SERIAL_6O1")
+        mode = SERIAL_6O1;
+    else if (_serialMode == "SERIAL_7O1")
+        mode = SERIAL_7O1;
+    else if (_serialMode == "SERIAL_8O1")
+        mode = SERIAL_8O1;
+    else if (_serialMode == "SERIAL_5O2")
+        mode = SERIAL_5O2;
+    else if (_serialMode == "SERIAL_6O2")
+        mode = SERIAL_6O2;
+    else if (_serialMode == "SERIAL_7O2")
+        mode = SERIAL_7O2;
+    else if (_serialMode == "SERIAL_8O2")
+        mode = SERIAL_8O2;
+    else
+    {
+        // Default fallback if the input is unknown
+        mode = SERIAL_8N1;
+    }
+
+    return mode;
+}
+uint32_t configReader::getSerialBaud()
+{
+    return _serialBaudrate.toInt();
+}
+
+void configReader::loadSerialConfigFile()
+{
+    File serialConfFile = SPIFFS.open("/serial_config.json");
+    this->_serialComPropertiesJson = serialConfFile.readString();
+    serialConfFile.close();
+
+    DynamicJsonDocument SerialConfDoc(2048);
+
+    // Deserialize the JSON string into the document
+    DeserializationError error = deserializeJson(SerialConfDoc, _serialComPropertiesJson);
+    if (error)
+    {
+        Serial.print("deserializeJson() failed: ");
+        Serial.println(error.c_str());
+    }
+    _serialBaudrate = String((const char *)SerialConfDoc["baudrate"]);
+    _serialMode = String((const char *)SerialConfDoc["mode"]);
+    Serial.println("====serial conf======");
+    Serial.println(_serialBaudrate);
+    Serial.println(_serialMode);
+    Serial.println("====serial conf======");
+}
+void configReader::conFigureSerial(HardwareSerial *modbusPort)
+{
+
+    Serial2.setPins(RXD2, TXD2);
+    Serial.println("Serial 2 pin was assigned successfully");
+    modbusPort->end();
+    modbusPort->begin(this->getSerialBaud(), this->getSerialMode());
+    delay(3000);
+    Serial.println("Serial port was began successfully");
+}
+void configReader::checkSerialUpdate(bool *serialUpdateFlag, modbusSensor &mbInterface)
+{
+    if (*serialUpdateFlag == true) // update sesor configuration if network manager sensor update flag is active
+    {
+
+        this->loadSerialConfigFile();
+        vTaskDelay(2000);
+        this->conFigureSerial(_modbusPort);
+        vTaskDelay(1000);
+        mbInterface.init(&Serial2);
+        Serial.println("Modbus Port was changed successfully");
+        *serialUpdateFlag = false;
+    }
+}
+
+String configReader::getSiteInfo()
+{
+    return _siteInfo;
+}
+
+void configReader::loadSiteInfo()
+{
+    File JsonFile = SPIFFS.open("/site_config.json");
+    String unparsedJson = JsonFile.readString();
+    JsonFile.close();
+    DynamicJsonDocument SiteConfDoc(2048);
+    // Deserialize the JSON string into the document
+    DeserializationError error = deserializeJson(SiteConfDoc, unparsedJson);
+    String buffer;
+    const char *siteName = SiteConfDoc["site_name"];
+    const char *plantName = SiteConfDoc["plant_name"];
+    const char *deviceName = SiteConfDoc["device_name"];
+    buffer = String(siteName) + "." + String(plantName) + "." + String(deviceName) + ".";
+    _siteInfo = buffer;
+    buffer = "";
+}
+void configReader::loadTimeInfo()
+{
+    File JsonFile = SPIFFS.open("/time_config.json");
+    _timeSetup = JsonFile.readString();
+    JsonFile.close();
+}
+void configReader::loadCloudInfo()
+{
+    File JsonFile = SPIFFS.open("/cloud_config.json");
+    _cloudSetup = JsonFile.readString();
+    JsonFile.close();
+}
+
+String configReader::getCloudHost()
+{
+    DynamicJsonDocument myJson(128);
+    DeserializationError error = deserializeJson(myJson, _cloudSetup);
+    return String((const char *)myJson["hostname"]);
+}
+String configReader::getCloudPort()
+{
+    DynamicJsonDocument myJson(128);
+    DeserializationError error = deserializeJson(myJson, _cloudSetup);
+    return String((const char *)myJson["port_number"]);
+}
+String configReader::getCloudToken()
+{
+    DynamicJsonDocument myJson(128);
+    DeserializationError error = deserializeJson(myJson, _cloudSetup);
+    return String((const char *)myJson["token"]);
+}
+String configReader::getCloudInterval()
+{
+    DynamicJsonDocument myJson(128);
+    DeserializationError error = deserializeJson(myJson, _cloudSetup);
+    return String((const char *)myJson["interval"]);
+}
+
+void configReader::checkSiteUpdate(bool *siteUpdateFlag)
+{
+    if (*siteUpdateFlag == true)
+    {
+        loadSiteInfo();
+        *siteUpdateFlag = false;
+    }
+}
+
+void configReader::checkTimeUpdate(bool *timeUpdateFlag)
+{
+    if (*timeUpdateFlag == true)
+    {
+        loadTimeInfo();
+        *timeUpdateFlag = false;
+    }
+}
+
+void configReader::checkCloudUpdate(bool *cloudUpdateFlag, TMRInstrumentWeb *cloud)
+{
+    // Serial.print("workspace len:");
+    // Serial.println(cloud->getWorkspace().length());
+    if (*cloudUpdateFlag == true || cloud->_workspace.length() < 1)
+    {
+        loadCloudInfo();
+        cloud->begin(this->getCloudToken().c_str());
+        cloud->setHost(this->getCloudHost().c_str());
+        cloud->reqWorkSpace();
+        *cloudUpdateFlag = false;
+    }
+}
+
+bool configReader::postSensors(const char *json, TMRInstrumentWeb *cloud)
+{
+    uint32_t cntSuccess = 0;
+    DynamicJsonDocument doc(1024);
+
+    DeserializationError error = deserializeJson(doc, json);
+    if (error)
+    {
+        Serial.print("Failed to parse JSON: ");
+        Serial.println(error.f_str());
+        return false;
+    }
+
+    JsonArray sensors = doc["sensors"];
+    for (JsonObject sensor : sensors)
+    {
+        const char *tagName = sensor["tag_name"];
+        float scaled = sensor["value"]["scaled"];
+
+        // Call your cloud publishing function
+        if (cloud->publish(tagName, String(scaled)) == 1)
+        {
+            cntSuccess++;
+        }
+    }
+    if (cntSuccess > 0)
+        return true;
+    else
+        return false;
+}

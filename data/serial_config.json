@@ -1,0 +1,4 @@
+{
+    "baudrate": "115200",
+    "mode": "SERIAL_8N1"
+}

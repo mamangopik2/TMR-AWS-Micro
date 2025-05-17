@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud Setup</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dropdown" style="position: absolute; top: 0; left: 2%;">
+        <button class="dropdown-button">&#9776;</button>
+        <div class="dropdown-content">
+            <button id="button_configured_sensor">CONFIGURED SENSOR</button>
+            <button id="button_network">NETWORK</button>
+            <button id="button_interfaces">MODBUS MASTER</button>
+            <button id="button_sensors">ADD SENSORS</button>
+            <button id="button_site_setup">SITE SETUP</button>
+            <button id="button_time_setup">TIME SETUP</button>
+            <button id="button_cloud_setup">CLOUD SETUP</button>
+            <button id="button_OTA">FIRMWARE UPDATE</button>
+
+        </div>
+    </div>
+    <div class="container">
+
+        <h2>Cloud Setup</h2>
+        <img src="logo.png" alt="TMR logo">
+
+        <label for="host_name">Cloud Host</label>
+        <input type="text" name="host_name" id="host_name" placeholder="https://tmr-instrumentweb.com">
+        <label for="port_number">Port Number</label>
+        <input type="number" min="80" max="65535" name="port_number" id="port_number" placeholder="80">
+        <label for="token">Token</label>
+        <input type="text" name="token" id="token" placeholder="-----">
+
+        <h3>Sending Interval</h3>
+        <label for="polling_interval">Sending Interval</label>
+        <select name="polling_interval" id="polling_interval">
+            <option value="1">1 Minute</option>
+            <option value="5">5 Minutes</option>
+            <option value="10">10 Minutes</option>
+            <option value="15">15 Minutes</option>
+            <option value="30">30 Minutes</option>
+            <option value="60">60 Minutes</option>
+            <option value="120">120 Minutes</option>
+            <option value="180">3 Hours</option>
+            <option value="360">6 Hours</option>
+            <option value="720">12 Hours</option>
+            <option value="1440">24 Hours</option>
+        </select>
+
+        <button id="button_save">SAVE</button>
+    </div>
+</body>
+<script src="beacon.js"></script>
+<script>
+    var base_url = window.location.origin;
+    let urlScan = base_url + '/scan';
+
+    // Redirect buttons
+    document.getElementById("button_network").onclick = () => {
+        window.location = base_url + '/net-form.html';
+    }
+    document.getElementById("button_sensors").onclick = () => {
+        window.location = base_url + '/sensors.html';
+    }
+    document.getElementById("button_interfaces").onclick = () => {
+        window.location = base_url + '/interfaces.html';
+    }
+    document.getElementById("button_site_setup").onclick = () => {
+        window.location = base_url + '/site_setup.html';
+    }
+    document.getElementById("button_time_setup").onclick = () => {
+        window.location = base_url + '/time_setup.html';
+    }
+    document.getElementById("button_cloud_setup").onclick = () => {
+        window.location = base_url + '/cloud_setup.html';
+    }
+    document.getElementById("button_OTA").onclick = () => {
+        window.location = base_url + '/OTA.html';
+    }
+    document.getElementById("button_configured_sensor").onclick = () => {
+        window.location = base_url + '/data_viewer.html';
+    }
+
+    // Save button (for wireless settings, looks like legacy code?)
+    document.getElementById("button_save").onclick = () => {
+        let urlScan = base_url + '/update-cloud';
+        let hostnameSelector = document.getElementById("host_name");
+        let portSelector = document.getElementById("port_number");
+        let tokenSelector = document.getElementById("token");
+        let intervalSelector = document.getElementById("polling_interval");
+
+
+
+        let data = {
+            hostname: `${hostnameSelector.value}`,
+            port_number: `${portSelector.value}`,
+            token: `${tokenSelector.value}`,
+            interval: `${intervalSelector.value}`
+        };
+        for (const key in data) {
+            if (data[key].length < 1) {
+                alert("form not filled completely");
+                return;
+            }
+        }
+
+        console.log(data);
+
+        fetch(urlScan, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        })
+            .then(res => res.json())
+            .then((out) => {
+                alert("Setup Success!");
+            })
+            .catch(err => alert("ERROR! response timeout"));
+
+    }
+</script>
+
+
+</html>

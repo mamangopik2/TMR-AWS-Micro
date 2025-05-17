@@ -1,0 +1,97 @@
+{
+    "sensor": [
+        {
+            "tag_name": "S1",
+            "phy": {
+                "channel": "modbus"
+            },
+            "calibration": {
+                "calibration_mode": "1",
+                "offset": "0",
+                "readout_min": "1",
+                "readout_max": "1",
+                "actual_min": "1",
+                "actual_max": "1",
+                "k_factor": "0.1",
+                "sensitivity": "0.1"
+            },
+            "modbus": {
+                "modbus_reg": "0",
+                "modbus_offset": "0",
+                "modbus_reg_type": "HREG",
+                "modbus_dtype": "UINT16",
+                "modbus_device_id": "1",
+                "hardware_channel": "modbus",
+                "big_endian": "FALSE"
+            },
+            "digital": {
+                "di_ch": "0"
+            },
+            "analog": {
+                "ai_ch": "0"
+            }
+        },
+        {
+            "tag_name": "S2",
+            "phy": {
+                "channel": "modbus"
+            },
+            "calibration": {
+                "calibration_mode": "1",
+                "offset": "0",
+                "readout_min": "1",
+                "readout_max": "1",
+                "actual_min": "1",
+                "actual_max": "1",
+                "k_factor": "0.1",
+                "sensitivity": "0.1"
+            },
+            "modbus": {
+                "modbus_reg": "1",
+                "modbus_offset": "0",
+                "modbus_reg_type": "HREG",
+                "modbus_dtype": "UINT16",
+                "modbus_device_id": "1",
+                "hardware_channel": "modbus",
+                "big_endian": "FALSE"
+            },
+            "digital": {
+                "di_ch": "0"
+            },
+            "analog": {
+                "ai_ch": "0"
+            }
+        },
+        {
+            "tag_name": "sensorCurahHujan",
+            "phy": {
+                "channel": "modbus"
+            },
+            "calibration": {
+                "calibration_mode": "1",
+                "offset": "0",
+                "readout_min": "1",
+                "readout_max": "1",
+                "actual_min": "1",
+                "actual_max": "1",
+                "k_factor": "0.01",
+                "sensitivity": "0.1"
+            },
+            "modbus": {
+                "modbus_reg": "4",
+                "modbus_offset": "0",
+                "modbus_reg_type": "HREG",
+                "modbus_dtype": "UINT16",
+                "modbus_device_id": "1",
+                "hardware_channel": "modbus",
+                "big_endian": "FALSE"
+            },
+            "digital": {
+                "di_ch": "0"
+            },
+            "analog": {
+                "ai_ch": "0"
+            }
+        }
+    ]
+}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OTA Firmware Update</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dropdown" style="position: absolute; top: 0; left: 2%;">
+        <button class="dropdown-button">&#9776;</button>
+        <div class="dropdown-content">
+            <button id="button_configured_sensor">CONFIGURED SENSOR</button>
+            <button id="button_network">NETWORK</button>
+            <button id="button_interfaces">MODBUS MASTER</button>
+            <button id="button_sensors">ADD SENSORS</button>
+            <button id="button_site_setup">SITE SETUP</button>
+            <button id="button_time_setup">TIME SETUP</button>
+            <button id="button_cloud_setup">CLOUD SETUP</button>
+            <button id="button_OTA">FIRMWARE UPDATE</button>
+
+        </div>
+    </div>
+    <div class="container">
+        <h2>OTA Firmware Update</h2>
+        <img src="logo.png" alt="logo akaBELD">
+        <input type="file" id="firmwareFile" accept=".bin" />
+        <button id="uploadBtn">Upload Firmware</button>
+        <div class="status" id="status"></div>
+    </div>
+    <script src="beacon.js"></script>
+    <script>
+        const uploadBtn = document.getElementById('uploadBtn');
+        const firmwareInput = document.getElementById('firmwareFile');
+        const status = document.getElementById('status');
+
+
+        var base_url = window.location.origin;
+
+        // Redirect buttons
+        document.getElementById("button_network").onclick = () => {
+            window.location = base_url + '/net-form.html';
+        }
+        document.getElementById("button_sensors").onclick = () => {
+            window.location = base_url + '/sensors.html';
+        }
+        document.getElementById("button_interfaces").onclick = () => {
+            window.location = base_url + '/interfaces.html';
+        }
+        document.getElementById("button_site_setup").onclick = () => {
+            window.location = base_url + '/site_setup.html';
+        }
+        document.getElementById("button_time_setup").onclick = () => {
+            window.location = base_url + '/time_setup.html';
+        }
+        document.getElementById("button_cloud_setup").onclick = () => {
+            window.location = base_url + '/cloud_setup.html';
+        }
+        document.getElementById("button_OTA").onclick = () => {
+            window.location = base_url + '/OTA.html';
+        }
+        document.getElementById("button_configured_sensor").onclick = () => {
+            window.location = base_url + '/data_viewer.html';
+        }
+
+        uploadBtn.addEventListener('click', () => {
+            const file = firmwareInput.files[0];
+            if (!file) {
+                status.textContent = 'Please select a .bin file first.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('firmware', file);
+
+            status.textContent = 'Uploading...';
+
+            fetch('/update', {
+                method: 'POST',
+                body: formData
+            })
+                .then(res => {
+                    if (res.ok) {
+                        status.textContent = 'Upload successful! Rebooting...';
+                    } else {
+                        status.textContent = 'Upload failed.';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    status.textContent = 'Upload error.';
+                });
+        });
+    </script>
+</body>
+
+</html>

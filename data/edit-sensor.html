@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit or Delete Sensor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dropdown" style="position: absolute; top: 0; left: 2%;">
+        <button class="dropdown-button">&#9776;</button>
+        <div class="dropdown-content">
+            <button id="button_configured_sensor">CONFIGURED SENSOR</button>
+            <button id="button_network">NETWORK</button>
+            <button id="button_interfaces">MODBUS MASTER</button>
+            <button id="button_sensors">ADD SENSORS</button>
+            <button id="button_site_setup">SITE SETUP</button>
+            <button id="button_time_setup">TIME SETUP</button>
+            <button id="button_cloud_setup">CLOUD SETUP</button>
+            <button id="button_OTA">FIRMWARE UPDATE</button>
+        </div>
+    </div>
+    <div class="container">
+
+        <h2>Edit or Delete Registered Sensor</h2>
+        <img src="logo.png" alt="TMR logo">
+
+        <label for="sensor_name">Sensor Name</label>
+        <input type="text" name="sensor_name" id="sensor_name" placeholder="SENSOR1">
+        <label for="sensor_phy">Physical Channel</label>
+        <select name="sensor_phy" id="sensor_phy">
+            <option value="NULL">SELECT</option>
+            <option value="modbus">Modbus RTU Master</option>
+            <option value="analog">Analog Input</option>
+            <option value="digital">Digital Input</option>
+        </select>
+
+
+        <div id="modbus_properties">
+            <label for="modbus_device_id">Modbus Device ID</label>
+            <input type="number" id="modbus_device_id" name="modbus_device_id" value="1">
+
+            <label for="modbus_reg">Register Address</label>
+            <input type="number" id="modbus_reg" name="modbus_reg" value="0">
+
+            <label for="modbus_offset">Modbus Offset</label>
+            <!-- <input type="number" id="modbus_offset" name="modbus_offset" value="0"> -->
+            <select id="modbus_offset" name="modbus_offset">
+                <option value="0" selected>0</option>
+                <option value="1">1</option>
+            </select>
+
+            <label for="modbus_reg_type">Modbus Register Type</label>
+            <select id="modbus_reg_type" name="modbus_reg_type">
+                <option value="HREG">Holding Register</option>
+                <option value="IREG">Input Register</option>
+                <option value="COIL">Discrete Output</option>
+                <option value="DISCRETE">Discrete Input</option>
+            </select>
+
+            <label for="modbus_dtype">Modbus Data Type</label>
+            <select id="modbus_dtype" name="modbus_dtype">
+                <option value="UINT16">UINT16</option>
+                <option value="INT16">INT16</option>
+                <option value="UINT32">UINT32</option>
+                <option value="INT32">INT32</option>
+                <option value="FLOAT32">FLOAT32</option>
+                <option value="DOUBLE">DOUBLE FLOAT</option>
+                <!-- add more types if needed -->
+            </select>
+
+
+            <label for="big_endian">Big Endian (Float Swap)</label>
+            <select id="big_endian" name="big_endian">
+                <option value="TRUE">TRUE</option>
+                <option value="FALSE" selected>FALSE</option>
+            </select>
+
+        </div>
+        <div id="ai_properties">
+            <label for="ai_channel">Analog Input</label>
+            <select id="ai_channel" name="ai_channel">
+                <option value="NULL">SELECT</option>
+                <option value="1">Channel 1</option>
+                <option value="2">Channel 2</option>
+            </select>
+        </div>
+        <div id="di_properties">
+            <label for="di_channel">Digital Input</label>
+            <select id="di_channel" name="di_channel">
+                <option value="NULL">SELECT</option>
+                <option value="1">Channel 1</option>
+                <option value="2">Channel 2</option>
+            </select>
+        </div>
+
+        <div>
+            <p id="calibration_tip"></p>
+        </div>
+
+        <label for="sensor_cal">Calibration Method</label>
+        <select name="sensor_cal" id="sensor_cal">
+            <option value="NULL">SELECT</option>
+            <option value="1">K Factor</option>
+            <option value="2">Sensitivity</option>
+            <option value="3">By 2 Points</option>
+        </select>
+        <input type="number" placeholder="K Factor" name="k_factor" id="k_factor">
+        <input type="number" placeholder="Sensitivity" name="sensitivity" id="sensitivity">
+        <input type="number" placeholder="Readout 1" name="reading1" id="reading1">
+        <input type="number" placeholder="Readout 2" name="reading2" id="reading2">
+        <input type="number" placeholder="Actual 1" name="reading1" id="actual1">
+        <input type="number" placeholder="Actual 2" name="reading2" id="actual2">
+        <label for="raw_unit">Raw Unit</label>
+        <input type="text" name="raw_unit" id="raw_unit" placeholder="V" value="V">
+
+        <label for="engineering_unit">Engineering Unit</label>
+        <input type="text" name="engineering_unit" id="engineering_unit" placeholder="mm" value="NA">
+
+        <label for="zero_offset">Zero Offset</label>
+        <input type="number" placeholder="Zero Offset" name="zero_offset" id="zero_offset">
+
+        <button id="button_cancel" style="background-color: rgb(200, 191, 191);">CANCEL</button>
+        <button id="button_save">UPDATE</button>
+        <button id="button_delete" style="background-color: red;">DELETE</button>
+    </div>
+</body>
+<script src="beacon.js"></script>
+<script>
+    var base_url = window.location.origin;
+    let urlScan = base_url + '/scan';
+
+    // Query selectors
+    const buttonNetwork = document.querySelector("#button_network");
+    const buttonInterfaces = document.querySelector("#button_interfaces");
+    const buttonSensors = document.querySelector("#button_sensors");
+    const buttonSiteSetup = document.querySelector("#button_site_setup");
+    const buttonTimeSetup = document.querySelector("#button_time_setup");
+    const buttonCloudSetup = document.querySelector("#button_cloud_setup");
+    const buttonOTA = document.querySelector("#button_OTA");
+    const buttonSave = document.querySelector("#button_save");
+
+    const sensorPhySelect = document.querySelector("#sensor_phy");
+    const sensorCalSelect = document.querySelector("#sensor_cal");
+
+    const modbusProps = document.querySelector("#modbus_properties");
+    const aiProps = document.querySelector("#ai_properties");
+    const diProps = document.querySelector("#di_properties");
+
+    const kFactorInput = document.querySelector("#k_factor");
+    const sensitivityInput = document.querySelector("#sensitivity");
+    const reading1Input = document.querySelector("#reading1");
+    const reading2Input = document.querySelector("#reading2");
+    const actual1Input = document.querySelector("#actual1");
+    const actual2Input = document.querySelector("#actual2");
+
+    const calibrationTipSelector = document.querySelector("#calibration_tip");
+    const raw_unit = document.querySelector("#raw_unit")
+    const engineering_unit = document.querySelector("#engineering_unit")
+
+    var jsonPayload = {};
+
+    // Redirect buttons
+    buttonNetwork.onclick = () => window.location = base_url + '/net-form.html';
+    buttonSensors.onclick = () => window.location = base_url + '/sensors.html';
+    buttonInterfaces.onclick = () => window.location = base_url + '/interfaces.html';
+    buttonSiteSetup.onclick = () => window.location = base_url + '/site_setup.html';
+    buttonTimeSetup.onclick = () => window.location = base_url + '/time_setup.html';
+    buttonCloudSetup.onclick = () => window.location = base_url + '/cloud_setup.html';
+    buttonOTA.onclick = () => window.location = base_url + '/OTA.html';
+    document.getElementById("button_configured_sensor").onclick = () => {
+        window.location = base_url + '/data_viewer.html';
+    }
+
+    document.getElementById("button_cancel").onclick = () => {
+        window.close();
+    }
+
+
+
+
+    // Initially hide all dynamic sections
+    modbusProps.style.display = "none";
+    aiProps.style.display = "none";
+    diProps.style.display = "none";
+    kFactorInput.style.display = "none";
+    sensitivityInput.style.display = "none";
+    reading1Input.style.display = "none";
+    reading2Input.style.display = "none";
+    actual1Input.style.display = "none";
+    actual2Input.style.display = "none";
+
+    // SENSOR PHY LOGIC
+    sensorPhySelect.addEventListener("change", function () {
+        const val = this.value;
+
+        // Hide all first
+        modbusProps.style.display = "none";
+        aiProps.style.display = "none";
+        diProps.style.display = "none";
+
+        if (val === "modbus") {
+            modbusProps.style.display = "block";
+        } else if (val === "analog") {
+            aiProps.style.display = "block";
+        } else if (val === "digital") {
+            diProps.style.display = "block";
+        }
+    });
+
+    raw_unit.onkeyup = function () {
+        let val = sensorCalSelect.value;
+        if (val === "1") { // K Factor
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}] </b> x kFactor  + Zero Offset`;
+        } else if (val === "2") { // Sensitivity
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}]</b> / Sensitivity + Zero Offset`;
+        } else if (val === "3") { // By 2 Points
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = (<b>InputValue[${raw_unit.value}]</b> - readout 1) x (actual 2 - actual 1) / (readout 2 - readout 1) + actual 1`;
+        }
+    }
+
+    engineering_unit.onkeyup = function () {
+        let val = sensorCalSelect.value;
+        if (val === "1") { // K Factor
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}] </b> x kFactor  + Zero Offset`;
+        } else if (val === "2") { // Sensitivity
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}]</b> / Sensitivity + Zero Offset`;
+        } else if (val === "3") { // By 2 Points
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = (<b>InputValue[${raw_unit.value}]</b> - readout 1) x (actual 2 - actual 1) / (readout 2 - readout 1) + actual 1`;
+        }
+    }
+
+
+    function newLoadViewChange() {
+        let val = sensorCalSelect.value;
+
+        // Hide all calibration inputs first
+        kFactorInput.style.display = "none";
+        sensitivityInput.style.display = "none";
+        reading1Input.style.display = "none";
+        reading2Input.style.display = "none";
+        actual1Input.style.display = "none";
+        actual2Input.style.display = "none";
+
+        if (val === "1") { // K Factor
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}] </b> x kFactor  + Zero Offset`;
+            kFactorInput.style.display = "inline-block";
+        } else if (val === "2") { // Sensitivity
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}]</b> / Sensitivity + Zero Offset`;
+            sensitivityInput.style.display = "inline-block";
+        } else if (val === "3") { // By 2 Points
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = (<b>InputValue[${raw_unit.value}]</b> - readout 1) x (actual 2 - actual 1) / (readout 2 - readout 1) + actual 1`;
+            reading1Input.style.display = "inline-block";
+            reading2Input.style.display = "inline-block";
+            actual1Input.style.display = "inline-block";
+            actual2Input.style.display = "inline-block";
+        }
+
+        val = sensorPhySelect.value;
+
+        // Hide all first
+        modbusProps.style.display = "none";
+        aiProps.style.display = "none";
+        diProps.style.display = "none";
+
+        if (val === "modbus") {
+            modbusProps.style.display = "block";
+        } else if (val === "analog") {
+            aiProps.style.display = "block";
+        } else if (val === "digital") {
+            diProps.style.display = "block";
+        }
+
+        val = sensorCalSelect.value;
+        if (val === "1") { // K Factor
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}] </b> x kFactor  + Zero Offset`;
+        } else if (val === "2") { // Sensitivity
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}]</b> / Sensitivity + Zero Offset`;
+        } else if (val === "3") { // By 2 Points
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = (<b>InputValue[${raw_unit.value}]</b> - readout 1) x (actual 2 - actual 1) / (readout 2 - readout 1) + actual 1`;
+        }
+
+        val = sensorCalSelect.value;
+        if (val === "1") { // K Factor
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}] </b> x kFactor  + Zero Offset`;
+        } else if (val === "2") { // Sensitivity
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}]</b> / Sensitivity + Zero Offset`;
+        } else if (val === "3") { // By 2 Points
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = (<b>InputValue[${raw_unit.value}]</b> - readout 1) x (actual 2 - actual 1) / (readout 2 - readout 1) + actual 1`;
+        }
+
+    }
+
+
+    // CALIBRATION LOGIC
+    sensorCalSelect.addEventListener("change", function () {
+        const val = this.value;
+
+        // Hide all calibration inputs first
+        kFactorInput.style.display = "none";
+        sensitivityInput.style.display = "none";
+        reading1Input.style.display = "none";
+        reading2Input.style.display = "none";
+        actual1Input.style.display = "none";
+        actual2Input.style.display = "none";
+
+        if (val === "1") { // K Factor
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}] </b> x kFactor  + Zero Offset`;
+            kFactorInput.style.display = "inline-block";
+        } else if (val === "2") { // Sensitivity
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = <b>InputValue[${raw_unit.value}]</b> / Sensitivity + Zero Offset`;
+            sensitivityInput.style.display = "inline-block";
+        } else if (val === "3") { // By 2 Points
+            calibrationTipSelector.innerHTML = `<b>OutputValue[${engineering_unit.value}]</b> = (<b>InputValue[${raw_unit.value}]</b> - readout 1) x (actual 2 - actual 1) / (readout 2 - readout 1) + actual 1`;
+            reading1Input.style.display = "inline-block";
+            reading2Input.style.display = "inline-block";
+            actual1Input.style.display = "inline-block";
+            actual2Input.style.display = "inline-block";
+        }
+    });
+
+
+    document.addEventListener("DOMContentLoaded", async function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const index = parseInt(urlParams.get("index")) || 0; // Default to 0 if not given
+
+        const baseUrl = base_url; // Replace with your actual base_url
+        try {
+            const response = await fetch(`${baseUrl}/list-sensor`);
+            const data = await response.json();
+            console.log("old", data);
+            const sensor = data.sensor[index];
+            if (!sensor) {
+                console.error(`No sensor found at index ${index}`);
+                return;
+            }
+
+            const calibration = sensor.calibration || {};
+            const modbus = sensor.modbus || {};
+            const digital = sensor.digital || {};
+            const analog = sensor.analog || {};
+            const phy = sensor.phy || {};
+
+            // Basic sensor info
+            document.getElementById("sensor_name").value = sensor.tag_name || "";
+            document.getElementById("sensor_phy").value = phy.channel || "";
+
+            // Calibration section
+            document.getElementById("sensor_cal").value = calibration.calibration_mode || "";
+            document.getElementById("k_factor").value = calibration.k_factor || "";
+            document.getElementById("sensitivity").value = calibration.sensitivity || "";
+
+            document.getElementById("reading1").value = calibration.readout_min || "";
+            document.getElementById("reading2").value = calibration.readout_max || "";
+            document.getElementById("actual1").value = calibration.actual_min || "";
+            document.getElementById("actual2").value = calibration.actual_max || "";
+
+            document.getElementById("zero_offset").value = calibration.offset || "";
+
+            // Modbus section
+            document.getElementById("modbus_device_id").value = modbus.modbus_device_id || "";
+            document.getElementById("modbus_reg").value = modbus.modbus_reg || "";
+            document.getElementById("modbus_offset").value = modbus.modbus_offset || "";
+            document.getElementById("modbus_reg_type").value = modbus.modbus_reg_type || "";
+            document.getElementById("modbus_dtype").value = modbus.modbus_dtype || "";
+            document.getElementById("big_endian").value = (modbus.big_endian || "").toUpperCase();
+
+            // Analog & Digital channels (if you use them)
+            document.getElementById("di_channel").value = digital.di_ch || "NULL";
+            document.getElementById("ai_channel").value = analog.ai_ch || "NULL";
+
+            // Units
+            document.getElementById("engineering_unit").value = sensor.engineering_unit || "";
+            document.getElementById("raw_unit").value = sensor.raw_unit || "";
+            newLoadViewChange();
+        } catch (err) {
+            console.error("Failed to fetch or process sensor data:", err);
+        }
+    });
+
+
+    document.getElementById("button_save").addEventListener("click", async function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const index = parseInt(urlParams.get("index")) || 0;
+        const baseUrl = base_url // Replace with actual base URL
+
+        try {
+            // 1. Fetch the current full sensor list
+            const response = await fetch(`${baseUrl}/list-sensor`);
+            const data = await response.json();
+            const sensors = data.sensor;
+
+            if (index < 0 || index >= sensors.length) {
+                alert("Invalid sensor index");
+                return;
+            }
+
+            // 2. Gather values from the form
+            const updatedSensor = {
+                tag_name: document.getElementById("sensor_name").value.trim(),
+                phy: {
+                    channel: document.getElementById("sensor_phy").value
+                },
+                calibration: {
+                    calibration_mode: document.getElementById("sensor_cal").value,
+                    offset: document.getElementById("zero_offset").value,
+                    readout_min: document.getElementById("reading1").value,
+                    readout_max: document.getElementById("reading2").value,
+                    actual_min: document.getElementById("actual1").value,
+                    actual_max: document.getElementById("actual2").value,
+                    k_factor: document.getElementById("k_factor").value,
+                    sensitivity: document.getElementById("sensitivity").value
+                },
+                modbus: {
+                    modbus_device_id: document.getElementById("modbus_device_id").value,
+                    modbus_reg: document.getElementById("modbus_reg").value,
+                    modbus_offset: document.getElementById("modbus_offset").value,
+                    modbus_reg_type: document.getElementById("modbus_reg_type").value,
+                    modbus_dtype: document.getElementById("modbus_dtype").value,
+                    big_endian: document.getElementById("big_endian").value
+                },
+                digital: {
+                    di_ch: document.getElementById("di_channel").value
+                },
+                analog: {
+                    ai_ch: document.getElementById("ai_channel").value
+                },
+                engineering_unit: document.getElementById("engineering_unit").value.trim(),
+                raw_unit: document.getElementById("raw_unit").value.trim()
+            };
+
+            // 3. Replace the sensor at the given index
+            sensors[index] = updatedSensor;
+            console.log("new", sensors);
+
+            // 4. Send the updated list to the server
+            const saveResponse = await fetch(`${baseUrl}/update-sensor`, {
+                method: "POST", // or PUT if your API expects that
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ sensor: sensors })
+            });
+
+            if (saveResponse.ok) {
+                alert("Sensor updated successfully!");
+                window.close();
+            } else {
+                alert("Failed to save sensor data.");
+            }
+
+        } catch (err) {
+            console.error("Error updating sensor:", err);
+            alert("An error occurred while updating the sensor.");
+        }
+    });
+
+
+    document.getElementById("button_delete").addEventListener("click", async function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const index = parseInt(urlParams.get("index")) || 0;
+        const baseUrl = base_url // Replace with actual base URL
+
+        try {
+            // 1. Fetch the current full sensor list
+            const response = await fetch(`${baseUrl}/list-sensor`);
+            const data = await response.json();
+            const sensors = data.sensor;
+
+            if (index < 0 || index >= sensors.length) {
+                alert("Invalid sensor index");
+                return;
+            }
+
+            // 2. Gather values from the form
+            const updatedSensor = {
+                tag_name: document.getElementById("sensor_name").value.trim(),
+                phy: {
+                    channel: document.getElementById("sensor_phy").value
+                },
+                calibration: {
+                    calibration_mode: document.getElementById("sensor_cal").value,
+                    offset: document.getElementById("zero_offset").value,
+                    readout_min: document.getElementById("reading1").value,
+                    readout_max: document.getElementById("reading2").value,
+                    actual_min: document.getElementById("actual1").value,
+                    actual_max: document.getElementById("actual2").value,
+                    k_factor: document.getElementById("k_factor").value,
+                    sensitivity: document.getElementById("sensitivity").value
+                },
+                modbus: {
+                    modbus_device_id: document.getElementById("modbus_device_id").value,
+                    modbus_reg: document.getElementById("modbus_reg").value,
+                    modbus_offset: document.getElementById("modbus_offset").value,
+                    modbus_reg_type: document.getElementById("modbus_reg_type").value,
+                    modbus_dtype: document.getElementById("modbus_dtype").value,
+                    big_endian: document.getElementById("big_endian").value
+                },
+                digital: {
+                    di_ch: document.getElementById("di_channel").value
+                },
+                analog: {
+                    ai_ch: document.getElementById("ai_channel").value
+                },
+                engineering_unit: document.getElementById("engineering_unit").value.trim(),
+                raw_unit: document.getElementById("raw_unit").value.trim()
+            };
+
+            // 3. Replace the sensor at the given index
+            sensors[index] = updatedSensor;
+            sensors.splice(index, 1);
+            console.log("new", sensors);
+
+            // 4. Send the updated list to the server
+            const saveResponse = await fetch(`${baseUrl}/update-sensor`, {
+                method: "POST", // or PUT if your API expects that
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ sensor: sensors })
+            });
+
+            if (saveResponse.ok) {
+                alert("Sensor updated successfully!");
+                window.close();
+            } else {
+                alert("Failed to save sensor data.");
+            }
+
+        } catch (err) {
+            console.error("Error updating sensor:", err);
+            alert("An error occurred while updating the sensor.");
+        }
+    });
+</script>
+
+
+
+</html>
