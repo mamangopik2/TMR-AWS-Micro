@@ -66,6 +66,82 @@ bool TMRInstrumentWeb::publish(String tagName, String data)
         return 0;
     }
 }
+
+bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
+{
+    if (WiFi.status() != WL_CONNECTED)
+        return false;
+
+    HTTPClient http;
+    String url = _host + "/nitag/v2/update-current-values";
+    http.begin(url);
+    http.addHeader("accept", "application/json");
+    http.addHeader("x-ni-api-key", _token);
+    http.addHeader("Content-Type", "application/json");
+
+    DynamicJsonDocument inputDoc(2048);
+    DeserializationError err = deserializeJson(inputDoc, data);
+    if (err)
+    {
+        Serial.print("JSON parse error: ");
+        Serial.println(err.c_str());
+        return false;
+    }
+
+    JsonArray sensors = inputDoc["sensors"];
+    if (!sensors)
+        return false;
+
+    DynamicJsonDocument outputDoc(4096); // final payload
+    JsonArray root = outputDoc.to<JsonArray>();
+    String workspaceId = getWorkspace();
+
+    for (JsonObject sensor : sensors)
+    {
+        const char *tag = sensor["tag_name"];
+        float scaledValue = sensor["value"]["scaled"];
+
+        Serial.print("Tag:");
+        Serial.print(tag);
+        Serial.print(" Value:");
+        Serial.println(scaledValue);
+        Serial.print("At:");
+        Serial.println(Timestamp);
+
+        JsonObject entry = root.createNestedObject();
+        entry["path"] = tag;
+        entry["workspace"] = workspaceId;
+        entry["timestamp"] = Timestamp;
+
+        JsonArray updates = entry.createNestedArray("updates");
+        JsonObject update = updates.createNestedObject();
+        JsonObject value = update.createNestedObject("value");
+        value["type"] = "DOUBLE";
+        value["value"] = scaledValue;
+    }
+
+    String payload;
+    serializeJson(outputDoc, payload);
+
+    int httpResponseCode = http.POST(payload);
+    Serial.print("HTTP Response code: ");
+    Serial.println(httpResponseCode);
+
+    if (httpResponseCode > 0)
+    {
+        String response = http.getString();
+        Serial.println(response);
+        http.end();
+        return true;
+    }
+    else
+    {
+        Serial.println("Error on sending POST");
+        http.end();
+        return false;
+    }
+}
+
 String TMRInstrumentWeb::getWorkspace()
 {
     return this->_workspace;

@@ -6,6 +6,8 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <wifiManager.h>
+#include <Wire.h>
 
 #define RXD2 26
 #define TXD2 27
@@ -13,6 +15,7 @@
 #define HREG 0
 #define IREG 1
 #define COIL 2
+
 class modbusSensor
 {
 private:
@@ -71,6 +74,7 @@ public:
 
     bool begin(const char *token);
     bool publish(String tagName, String data);
+    bool publishBulk(String data, String Timestamp);
     String getWorkspace();
     void setWorkspace(String id);
     bool reqWorkSpace();
@@ -90,9 +94,14 @@ public:
     String _siteInfo;
     String _timeSetup;
     String _cloudSetup;
+    String NTPServer, timezone, timeSource;
     void loadSiteInfo();
     void loadTimeInfo();
     void loadCloudInfo();
+
+    String getTimeZone();
+    String getTimeSource();
+    String getNTPServer();
 
     HardwareSerial *_modbusPort;
     int getSerialMode();
@@ -103,6 +112,7 @@ public:
     void checkSiteUpdate(bool *siteUpdateFlag);
     void checkTimeUpdate(bool *timeUpdateFlag);
     void checkCloudUpdate(bool *cloudUpdateFlag, TMRInstrumentWeb *cloud);
+    void checkRTCUpdate(bool *RTCUpdateFlag, wifiManager *netmanager);
     String getSiteInfo();
     String getCloudHost();
     String getCloudPort();
@@ -110,6 +120,18 @@ public:
     String getCloudInterval();
 
     bool postSensors(const char *json, TMRInstrumentWeb *cloud);
+    struct tm timeinfo;
+    String getISOTimeNTP();
+    String getISOTimeRTC();
+    void initRTC();
+};
+class scheduler
+{
+private:
+    /* data */
+public:
+    void manage(const String &data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute);
+    void deepSleep(unsigned long durationMinute);
 };
 
 #endif // TMR_sensor_h

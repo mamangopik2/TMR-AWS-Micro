@@ -41,11 +41,12 @@ public:
     String _AP_SSID, _AP_PWD, _SSID, _PASSWORD, _SUBNET, _GATEWAY, _STATIC_IP, _SERVER_PORT, _SERVER_IP, _BUFFER_SIZE, _CON_MODE;
     String scannedSSID = "";
     String globalMessage;
+    String RTCJson;
     bool enableDHCP = false;
     int core = 0;
     int priority = 1;
     unsigned long wifiTimeout = 30000;
-    unsigned long beaconUpdatedTime = 0;
+    unsigned long beaconUpdatedTime = 1; // if assigned 0 it will not resulting 0 with time multipication
     bool _staticIPMode = true;
     bool automaticAPDisable = true;
     bool sensorUpdated = false;
@@ -53,6 +54,7 @@ public:
     bool siteUpdated = false;
     bool timeUpdated = false;
     bool cloudUpdated = false;
+    bool RTCUpdated = false;
 
     String getContentType(String filename);
 
@@ -74,6 +76,7 @@ public:
     void handleTimeUpdate();
     void handleCloudUpdate();
     void handleBeacon();
+    void handleRTCSet();
     void toggleAP();
     bool getAPState();
     void setAPState(bool state);

@@ -514,6 +514,16 @@ void wifiManager::handleBeacon()
     server->send(200, "application/json", "{\"STATUS\":\"OK\"}");
 }
 
+void wifiManager::handleRTCSet()
+{
+    server->sendHeader("Access-Control-Allow-Origin", "*");
+    server->sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server->sendHeader("Access-Control-Allow-Headers", "Content-Type");
+    RTCJson = server->arg("plain");
+    server->send(200, "application/json", "{\"STATUS\":\"OK\"}");
+    RTCUpdated = true;
+}
+
 unsigned long wifiManager::getBeaconTime()
 {
     return this->beaconUpdatedTime;
@@ -523,6 +533,7 @@ void wifiManager::compile()
 {
     Serial.println("Webserver begin");
     server->begin();
+    // server->serveStatic("/", SPIFFS, "/"); // allow downloading files directly
     server->on("/", [this]()
                { this->handleHome(); });
 
@@ -561,6 +572,8 @@ void wifiManager::compile()
                { handleTimeUpdate(); });
     server->on("/beacon", [this]()
                { handleBeacon(); });
+    server->on("/rtc-calibration", [this]()
+               { handleRTCSet(); });
 
     server->onNotFound([this]()
                        {
@@ -700,26 +713,21 @@ void wifiManager::handleFileList()
     String html = "<!DOCTYPE html><html><head><title>File Browser</title></head><body>";
     html += "<h2>SPIFFS File List</h2><ul>";
 
-    // File root = SPIFFS.open("/");
-    // File file = root.openNextFile();
-    // while (file)
-    // {
-    //     String filename = file.name();
-    //     Serial.println(filename);
-    //     html += "<li><p>" + filename + "</p></li>";
-    //     file = root.openNextFile();
-    // }
-
+    // Use `SPIFFS.openDir()` for ESP8266 or `SPIFFS.open("/")` + `openNextFile()` for ESP32
     File root = SPIFFS.open("/");
-    File file = root.openNextFile("r");
-    Serial.println(root);
-    Serial.println(file);
+    if (!root || !root.isDirectory())
+    {
+        server->send(500, "text/plain", "Failed to open directory");
+        return;
+    }
 
+    File file = root.openNextFile();
     while (file)
     {
+        String filename = String(file.name());
+        Serial.println("Found file: " + filename);
 
-        Serial.print("FILE: ");
-        Serial.println(file.name());
+        html += "<li><a href=\"" + filename + "\" download>" + filename + "</a></li>";
 
         file = root.openNextFile();
     }

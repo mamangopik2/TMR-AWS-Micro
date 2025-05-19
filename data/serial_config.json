@@ -1,4 +1,1 @@
-{
-    "baudrate": "115200",
-    "mode": "SERIAL_8N1"
-}
+{"baudrate":"38400","mode":"SERIAL_8N1"}

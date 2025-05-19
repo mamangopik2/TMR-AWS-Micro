@@ -7,7 +7,7 @@ modbusSensor::modbusSensor()
 void modbusSensor::init(HardwareSerial *modbusPort)
 {
     _modbusPort = modbusPort;
-    _modbusInstance->begin(_modbusPort);
+    _modbusInstance->begin(modbusPort);
     _modbusInstance->master();
 }
 void modbusSensor::test()

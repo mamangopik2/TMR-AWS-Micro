@@ -1,5 +1,9 @@
 #include "TMRSensor.h"
 
+#include <RTClib.h>
+#include "time.h"
+RTC_DS1307 timeRTC;
+
 String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &mbInterface)
 {
     String sensorsData[50] = {};
@@ -87,11 +91,20 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         if (String(phy) == "modbus")
         {
             if (String(calibration_mode) == "1") // kFactor
+            {
+                Serial.println("with KF");
                 sensorData = sensManager.readModbusKF(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor));
+            }
             else if (String(calibration_mode) == "2") // sensitivity
+            {
+                Serial.println("with sensitivity");
                 sensorData = sensManager.readModbus(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(sensitivity));
+            }
             else if (String(calibration_mode) == "3") // two-points callibration
+            {
+                Serial.println("with two-points callibration");
                 sensorData = sensManager.readModbus(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
+            }
             else
                 sensorData = sensManager.readModbus(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor));
         }
@@ -225,10 +238,8 @@ void configReader::loadSerialConfigFile()
 void configReader::conFigureSerial(HardwareSerial *modbusPort)
 {
 
-    Serial2.setPins(RXD2, TXD2);
     Serial.println("Serial 2 pin was assigned successfully");
-    modbusPort->end();
-    modbusPort->begin(this->getSerialBaud(), this->getSerialMode());
+    Serial2.begin(this->getSerialBaud(), this->getSerialMode(), RXD2, TXD2, false, 300);
     delay(3000);
     Serial.println("Serial port was began successfully");
 }
@@ -273,6 +284,7 @@ void configReader::loadTimeInfo()
     File JsonFile = SPIFFS.open("/time_config.json");
     _timeSetup = JsonFile.readString();
     JsonFile.close();
+    Serial.println(_timeSetup);
 }
 void configReader::loadCloudInfo()
 {
@@ -315,11 +327,41 @@ void configReader::checkSiteUpdate(bool *siteUpdateFlag)
     }
 }
 
+String configReader::getTimeZone()
+{
+    return timezone;
+}
+String configReader::getTimeSource()
+{
+    return timeSource;
+}
+String configReader::getNTPServer()
+{
+    return NTPServer;
+}
+
 void configReader::checkTimeUpdate(bool *timeUpdateFlag)
 {
     if (*timeUpdateFlag == true)
     {
         loadTimeInfo();
+        DynamicJsonDocument json(128);
+        DeserializationError error = deserializeJson(json, _timeSetup);
+        const char *ntpserver = json["ntp_server"];
+        const char *tzone = json["time_zone"];
+        const char *tsource = json["time_source"];
+        NTPServer = ntpserver;
+        timezone = tzone;
+        timeSource = tsource;
+        Serial.println(getTimeSource());
+        if (getTimeSource() == "NTP")
+        {
+            configTime((timezone.toFloat() * 3600), 0, NTPServer.c_str());
+        }
+        else
+        {
+            initRTC();
+        }
         *timeUpdateFlag = false;
     }
 }
@@ -338,33 +380,99 @@ void configReader::checkCloudUpdate(bool *cloudUpdateFlag, TMRInstrumentWeb *clo
     }
 }
 
+void configReader::initRTC()
+{
+    if (!timeRTC.begin())
+    {
+        Serial.println("Couldn't find RTC");
+    }
+    delay(1000);
+    if (!timeRTC.isrunning())
+    {
+        Serial.println("RTC is NOT running!");
+    }
+}
+String configReader::getISOTimeNTP()
+{
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo))
+    {
+        bool initTime = true;
+        checkTimeUpdate(&initTime);
+        return "0000-00-00T00:00:00Z"; // Return fallback if time isn't available
+    }
+
+    char isoBuffer[25];
+    strftime(isoBuffer, sizeof(isoBuffer), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+    return String(isoBuffer);
+}
+String configReader::getISOTimeRTC()
+{
+    if (!timeRTC.isrunning())
+    {
+        initRTC();
+        return "0000-00-00T00:00:00Z"; // Return fallback if time isn't available
+    }
+    DateTime now = timeRTC.now();
+
+    char buffer[25];
+    snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02dZ",
+             now.year(), now.month(), now.day(),
+             now.hour(), now.minute(), now.second());
+    return String(buffer);
+}
+
+void configReader::checkRTCUpdate(bool *RTCUpdateFlag, wifiManager *netmanager)
+{
+    if (*RTCUpdateFlag == true)
+    {
+        DynamicJsonDocument doc(128);
+        DeserializationError error = deserializeJson(doc, netmanager->RTCJson);
+        Serial.println(netmanager->RTCJson);
+
+        int year = doc["year"];
+        int month = doc["month"];
+        int day = doc["date"];
+        int hour = doc["hour"];
+        int minute = doc["minute"];
+        int second = doc["second"];
+
+        timeRTC.adjust(DateTime(year, month, day, hour, minute, second));
+        Serial.println("RTC updated successfully.");
+
+        *RTCUpdateFlag = false;
+    }
+}
+
 bool configReader::postSensors(const char *json, TMRInstrumentWeb *cloud)
 {
-    uint32_t cntSuccess = 0;
-    DynamicJsonDocument doc(1024);
+    // return cloud->publishBulk(json);
 
-    DeserializationError error = deserializeJson(doc, json);
-    if (error)
-    {
-        Serial.print("Failed to parse JSON: ");
-        Serial.println(error.f_str());
-        return false;
-    }
+    // uint32_t cntSuccess = 0;
+    // DynamicJsonDocument doc(1024);
 
-    JsonArray sensors = doc["sensors"];
-    for (JsonObject sensor : sensors)
-    {
-        const char *tagName = sensor["tag_name"];
-        float scaled = sensor["value"]["scaled"];
+    // DeserializationError error = deserializeJson(doc, json);
+    // if (error)
+    // {
+    //     Serial.print("Failed to parse JSON: ");
+    //     Serial.println(error.f_str());
+    //     return false;
+    // }
 
-        // Call your cloud publishing function
-        if (cloud->publish(tagName, String(scaled)) == 1)
-        {
-            cntSuccess++;
-        }
-    }
-    if (cntSuccess > 0)
-        return true;
-    else
-        return false;
+    // JsonArray sensors = doc["sensors"];
+    // for (JsonObject sensor : sensors)
+    // {
+    //     const char *tagName = sensor["tag_name"];
+    //     float scaled = sensor["value"]["scaled"];
+
+    //     // Call your cloud publishing function
+    //     if (cloud->publish(tagName, String(scaled)) == 1)
+    //     {
+    //         cntSuccess++;
+    //     }
+    // }
+    // if (cntSuccess > 0)
+    //     return true;
+    // else
+    //     return false;
 }

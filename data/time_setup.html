@@ -29,53 +29,60 @@
 
         <label for="time_source">Time Source</label>
         <select name="time_source" id="time_source">
-            <option value="NTP" selected>NTP</option>
-            <option value="RTC">RTC</option>
+            <option value="NTP">NTP</option>
+            <option value="RTC" selected>RTC</option>
         </select>
         <div id="ntp_server_group">
             <label for="ntp_server">NTP Server</label>
             <input type="text" name="ntp_server" id="ntp_server" value="pool.ntp.org">
+
+            <label for="time_zone">Time Zone</label>
+            <select name="time_zone" id="time_zone">
+                <option value="-12">GMT-12:00</option>
+                <option value="-11">GMT-11:00</option>
+                <option value="-10">GMT-10:00</option>
+                <option value="-9">GMT-09:00</option>
+                <option value="-8">GMT-08:00</option>
+                <option value="-7">GMT-07:00</option>
+                <option value="-6">GMT-06:00</option>
+                <option value="-5">GMT-05:00</option>
+                <option value="-4">GMT-04:00</option>
+                <option value="-3.5">GMT-03:30</option>
+                <option value="-3">GMT-03:00</option>
+                <option value="-2">GMT-02:00</option>
+                <option value="-1">GMT-01:00</option>
+                <option value="0">GMT+00:00</option>
+                <option value="1">GMT+01:00</option>
+                <option value="2">GMT+02:00</option>
+                <option value="3">GMT+03:00</option>
+                <option value="3.5">GMT+03:30</option>
+                <option value="4">GMT+04:00</option>
+                <option value="4.5">GMT+04:30</option>
+                <option value="5">GMT+05:00</option>
+                <option value="5.5">GMT+05:30</option>
+                <option value="5.75">GMT+05:45</option>
+                <option value="6">GMT+06:00</option>
+                <option value="6.5">GMT+06:30</option>
+                <option value="7" selected>GMT+07:00</option>
+                <option value="8">GMT+08:00</option>
+                <option value="8.75">GMT+08:45</option>
+                <option value="9">GMT+09:00</option>
+                <option value="9.5">GMT+09:30</option>
+                <option value="10">GMT+10:00</option>
+                <option value="10.5">GMT+10:30</option>
+                <option value="11">GMT+11:00</option>
+                <option value="12">GMT+12:00</option>
+                <option value="12.75">GMT+12:45</option>
+                <option value="13">GMT+13:00</option>
+                <option value="14">GMT+14:00</option>
+            </select>
         </div>
-        <label for="time_zone">Time Zone</label>
-        <select name="time_zone" id="time_zone">
-            <option value="-12">GMT-12:00</option>
-            <option value="-11">GMT-11:00</option>
-            <option value="-10">GMT-10:00</option>
-            <option value="-9">GMT-09:00</option>
-            <option value="-8">GMT-08:00</option>
-            <option value="-7">GMT-07:00</option>
-            <option value="-6">GMT-06:00</option>
-            <option value="-5">GMT-05:00</option>
-            <option value="-4">GMT-04:00</option>
-            <option value="-3.5">GMT-03:30</option>
-            <option value="-3">GMT-03:00</option>
-            <option value="-2">GMT-02:00</option>
-            <option value="-1">GMT-01:00</option>
-            <option value="0">GMT+00:00</option>
-            <option value="1">GMT+01:00</option>
-            <option value="2">GMT+02:00</option>
-            <option value="3">GMT+03:00</option>
-            <option value="3.5">GMT+03:30</option>
-            <option value="4">GMT+04:00</option>
-            <option value="4.5">GMT+04:30</option>
-            <option value="5">GMT+05:00</option>
-            <option value="5.5">GMT+05:30</option>
-            <option value="5.75">GMT+05:45</option>
-            <option value="6">GMT+06:00</option>
-            <option value="6.5">GMT+06:30</option>
-            <option value="7" selected>GMT+07:00</option>
-            <option value="8">GMT+08:00</option>
-            <option value="8.75">GMT+08:45</option>
-            <option value="9">GMT+09:00</option>
-            <option value="9.5">GMT+09:30</option>
-            <option value="10">GMT+10:00</option>
-            <option value="10.5">GMT+10:30</option>
-            <option value="11">GMT+11:00</option>
-            <option value="12">GMT+12:00</option>
-            <option value="12.75">GMT+12:45</option>
-            <option value="13">GMT+13:00</option>
-            <option value="14">GMT+14:00</option>
-        </select>
+        <div id="rtc_cal_group">
+            <label for="rtc_cal">RTC Calibration</label>
+            <input type="time" name="rtc_cal" id="rtc_cal">
+            <button onclick="sendRTCCal()">Set RTC</button>
+        </div>
+
 
 
 
@@ -151,19 +158,86 @@
 
     }
 
+    function sendRTCCal() {
+        const timeInput = document.getElementById("rtc_cal").value;
+
+        if (!timeInput) {
+            alert("Please select a time.");
+            return;
+        }
+
+        // Split time into hour and minute
+        const [hour, minute] = timeInput.split(":").map(Number);
+
+        // Get current date
+        const now = new Date();
+        const payload = {
+            year: now.getFullYear(),
+            month: now.getMonth() + 1, // Months are 0-based
+            date: now.getDate(),
+            hour: hour,
+            minute: minute,
+            second: 0
+        };
+
+        fetch("/rtc-calibration", {  // Replace with your actual API endpoint
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Network response was not OK");
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Success:", data);
+                alert("RTC calibration time submitted.");
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                alert("Failed to submit RTC time.");
+            });
+    }
+
     const timeSourceSelect = document.getElementById('time_source');
     const ntpServerGroup = document.getElementById('ntp_server_group');
+    const rtcCalGroup = document.getElementById('rtc_cal_group');
 
     // Hide initially
-    ntpServerGroup.style.display = 'none';
 
     timeSourceSelect.addEventListener('change', () => {
         if (timeSourceSelect.value === 'NTP') {
             ntpServerGroup.style.display = 'block';
+            rtcCalGroup.style.display = 'none';
         } else {
             ntpServerGroup.style.display = 'none';
+            rtcCalGroup.style.display = 'block';
         }
     });
+
+    timeSourceSelect.addEventListener('change', () => {
+        if (timeSourceSelect.value === 'NTP') {
+            ntpServerGroup.style.display = 'block';
+            rtcCalGroup.style.display = 'none';
+        } else {
+            ntpServerGroup.style.display = 'none';
+            rtcCalGroup.style.display = 'block';
+        }
+    });
+
+    setTimeout(function () {
+        if (timeSourceSelect.value === 'NTP') {
+            ntpServerGroup.style.display = 'block';
+            rtcCalGroup.style.display = 'none';
+        } else {
+            ntpServerGroup.style.display = 'none';
+            rtcCalGroup.style.display = 'block';
+        }
+    }, 10)
 
 
 </script>

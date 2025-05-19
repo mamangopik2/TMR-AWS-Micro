@@ -14,6 +14,7 @@ sensorManager instrumentManager; // define sensor manager
 wifiManager networkManager;      // network Interface Manager
 configReader sensorConfigurator;
 TMRInstrumentWeb cloud;
+scheduler systemScheduler;
 
 String jsonString;
 
@@ -32,7 +33,7 @@ void netManagerRoutine(void *param)
 }
 
 TaskHandle_t timeTask;
-void timeScheduler(void *param)
+void clock(void *param)
 {
 
   t0 = millis();
@@ -64,9 +65,9 @@ void deepSleep(unsigned long durationMinute)
 
 void setup()
 {
-  // Serial.begin(115200); // host serial
+  Serial.begin(115200); // host serial
   xTaskCreatePinnedToCore(netManagerRoutine, "network manager", 8192, NULL, 5, &NetManagerTasks, 0);
-  xTaskCreatePinnedToCore(timeScheduler, "time scheduler", 1024, NULL, 6, &timeTask, 0);
+  xTaskCreatePinnedToCore(clock, "time scheduler", 1024, NULL, 6, &timeTask, 1);
 
   sensorConfigurator.loadFile();               // load sensors conf
   sensorConfigurator.loadSerialConfigFile();   // load serial comm conf
@@ -75,13 +76,12 @@ void setup()
   sensorConfigurator.loadCloudInfo();          // load cloud conf
   sensorConfigurator.conFigureSerial(&Serial); // run the configuration
 
-  mbInstrument.init(&Serial); // init the modbus instrument
+  mbInstrument.init(&Serial2); // init the modbus instrument
 
-  cloud.begin(sensorConfigurator.getCloudToken().c_str());
   cloud.setHost(sensorConfigurator.getCloudHost().c_str());
-
-  // debuger.setHost("192.168.15.83");
-  // debuger.setPort(1234);
+  cloud.begin(sensorConfigurator.getCloudToken().c_str());
+  bool initTime = true;
+  sensorConfigurator.checkTimeUpdate(&initTime);
 }
 
 void loop() // this loop runs on Core1 by default
@@ -93,37 +93,28 @@ void loop() // this loop runs on Core1 by default
   sensorConfigurator.checkSiteUpdate(&networkManager.siteUpdated);                        // check for update if there any changes on the site conf
   sensorConfigurator.checkTimeUpdate(&networkManager.timeUpdated);                        // check for update if there any changes on the time conf
   sensorConfigurator.checkCloudUpdate(&networkManager.cloudUpdated, &cloud);              // check for update if there any changes on the cloud conf if update occurs then update the cloud setup
-  vTaskDelay(300 / portTICK_PERIOD_MS);                                                   // delay
+  sensorConfigurator.checkRTCUpdate(&networkManager.RTCUpdated, &networkManager);
+  vTaskDelay(500 / portTICK_PERIOD_MS); // delay
+
+  systemScheduler.manage(sensorDataPacket,
+                         &sensorConfigurator,
+                         &networkManager,
+                         &cloud,
+                         &runUpTimeMinute,
+                         &minuteCounter);
 
   Serial.print(minuteCounter);
   Serial.print(':');
   Serial.println(secondCounter);
-
   Serial.print("beacon Time:");
   Serial.println(networkManager.getBeaconTime());
+  Serial.print("beacon Time:");
+  Serial.print(millis() - networkManager.getBeaconTime());
+  Serial.print("---thresshold Time:");
+  Serial.println((1 * 60 * 1000));
 
-  if (sensorConfigurator.getCloudInterval().toInt() >= 5) // if the sending interval > 5 minutes, activate sleep mode
-  {
-    if (minuteCounter >= runUpTimeMinute)
-    {
-      sensorConfigurator.postSensors(sensorDataPacket.c_str(), &cloud);
-      if (millis() - networkManager.getBeaconTime() > (10 * 60 * 1000)) // activate sleep after 10 minutes from client finished configuration
-      {
-        deepSleep(sensorConfigurator.getCloudInterval().toInt() - runUpTimeMinute);
-      }
-      else
-      {
-        minuteCounter = 0;
-      }
-    }
-  }
-  else
-  {
-    // send every x minutes without sleep();
-    if (minuteCounter >= sensorConfigurator.getCloudInterval().toInt())
-    {
-      sensorConfigurator.postSensors(sensorDataPacket.c_str(), &cloud);
-      minuteCounter = 0; // reset the minute timer after send the data
-    }
-  }
+  uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
+  Serial.print("Free Heap: ");
+  Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
+  Serial.println(" KB");
 }
