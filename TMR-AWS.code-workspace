@@ -2,9 +2,6 @@
 	"folders": [
 		{
 			"path": "."
-		},
-		{
-			"path": "../../../coding/WEBSITE/TMRemoteMQ"
 		}
 	],
 	"settings": {
@@ -20,7 +17,8 @@
 			"regex": "cpp",
 			"sstream": "cpp",
 			"*.tcc": "cpp",
-			"optional": "cpp"
+			"optional": "cpp",
+			"new": "cpp"
 		}
 	}
 }

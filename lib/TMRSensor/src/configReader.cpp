@@ -30,15 +30,6 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         const char *tag = sensor["tag_name"];
         const char *phy = sensor["phy"]["channel"];
 
-        // Modbus
-        const char *device_id = sensor["modbus"]["modbus_device_id"];
-        const char *reg = sensor["modbus"]["modbus_reg"];
-        const char *offset = sensor["modbus"]["modbus_offset"];
-        const char *reg_type = sensor["modbus"]["modbus_reg_type"];
-        const char *dtype = sensor["modbus"]["modbus_dtype"];
-        const char *hardware_channel = sensor["modbus"]["hardware_channel"];
-        const char *mbBigEndian = sensor["modbus"]["big_endian"];
-
         // Calibration
         const char *calibration_mode = sensor["calibration"]["calibration_mode"];
         const char *offset_val = sensor["calibration"]["offset"];
@@ -48,6 +39,14 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         const char *actual_max = sensor["calibration"]["actual_max"];
         const char *k_factor = sensor["calibration"]["k_factor"];
         const char *sensitivity = sensor["calibration"]["sensitivity"];
+        // Modbus
+        const char *device_id = sensor["modbus"]["modbus_device_id"];
+        const char *reg = sensor["modbus"]["modbus_reg"];
+        const char *offset = sensor["modbus"]["modbus_offset"];
+        const char *reg_type = sensor["modbus"]["modbus_reg_type"];
+        const char *dtype = sensor["modbus"]["modbus_dtype"];
+        const char *hardware_channel = sensor["modbus"]["hardware_channel"];
+        const char *mbBigEndian = sensor["modbus"]["big_endian"];
 
         // Digital input
         const char *di_ch = sensor["digital"]["di_ch"];
@@ -92,21 +91,49 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         {
             if (String(calibration_mode) == "1") // kFactor
             {
-                Serial.println("with KF");
+                // Serial.println("with KF");
                 sensorData = sensManager.readModbusKF(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor));
             }
             else if (String(calibration_mode) == "2") // sensitivity
             {
-                Serial.println("with sensitivity");
+                // Serial.println("with sensitivity");
                 sensorData = sensManager.readModbus(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(sensitivity));
             }
             else if (String(calibration_mode) == "3") // two-points callibration
             {
-                Serial.println("with two-points callibration");
+                // Serial.println("with two-points callibration");
                 sensorData = sensManager.readModbus(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
             }
             else
+            {
                 sensorData = sensManager.readModbus(getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor));
+            }
+        }
+        if (String(phy) == "analog")
+        {
+            if (String(calibration_mode) == "1") // kFactor
+            {
+                // Serial.println("with KF");
+                sensorData = sensManager.readAnalog_KF(getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor));
+            }
+            else if (String(calibration_mode) == "2") // sensitivity
+            {
+                // Serial.println("with sensitivity");
+                sensorData = sensManager.readAnalog_S(getSiteInfo() + String(tag), atoi(ai_ch), atof(sensitivity));
+            }
+            else if (String(calibration_mode) == "3") // two-points callibration
+            {
+                // Serial.println("with two-points callibration");
+                sensorData = sensManager.readAnalog_MAP(getSiteInfo() + String(tag), atoi(ai_ch), atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
+            }
+            else
+            {
+                sensorData = sensManager.readAnalog_KF(getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor));
+            }
+        }
+        if (String(phy) == "digital")
+        {
+            sensorData = sensManager.readDigital(getSiteInfo() + String(tag), atoi(di_ch));
         }
         sensorsData[sensorsIndex] = sensorData;
         sensorsIndex++;

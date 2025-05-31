@@ -8,6 +8,7 @@
 #include <HTTPClient.h>
 #include <wifiManager.h>
 #include <Wire.h>
+#include <Adafruit_ADS1X15.h>
 
 #define RXD2 26
 #define TXD2 27
@@ -15,6 +16,11 @@
 #define HREG 0
 #define IREG 1
 #define COIL 2
+
+#define DI1 30
+#define DI2 31
+#define DI3 32
+#define DI4 33
 
 class modbusSensor
 {
@@ -49,11 +55,17 @@ private:
     uint32_t registeredSensor = 0;
 
 public:
+    Adafruit_ADS1015 *_ADCInterface;
     sensorManager(/* args */);
     String readModbusKF(String tagName1, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint16_t offsett, bool bigEndian, float kFactor);
     String readModbus(String tagName2, modbusSensor modbus, uint32_t deviceID, uint8_t dataType, uint16_t regType, uint16_t regAddr, uint8_t offsett, bool bigEndian, float sensitivity);
     String readModbus(String tagName3, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint32_t offsett, bool bigEndian, float readoutMin, float readoutMax, float actualMin, float actualMax);
-    // String readAnalog();
+    void initAnalog(uint8_t address, adsGain_t gain);
+    void initAnalog(adsGain_t gain);
+    String readAnalog_KF(String tagName1, uint8_t channel, float kFactor);
+    String readAnalog_S(String tagName2, uint8_t channel, float sensitivity);
+    String readAnalog_MAP(String tagName2, uint8_t channel, float readoutMin, float readoutMax, float actualMin, float actualMax);
+    String readDigital(String tagName, uint8_t channel);
     // String readDigital();
 };
 

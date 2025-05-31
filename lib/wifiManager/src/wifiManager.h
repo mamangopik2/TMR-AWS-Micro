@@ -42,6 +42,7 @@ public:
     String scannedSSID = "";
     String globalMessage;
     String RTCJson;
+    String fuseSensor(String existingJson, String newSensorJson);
     bool enableDHCP = false;
     int core = 0;
     int priority = 1;

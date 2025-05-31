@@ -239,3 +239,136 @@ String sensorManager::readModbus(String tagName3, modbusSensor modbus, uint16_t 
 
     return returnVal;
 }
+
+void sensorManager::initAnalog(adsGain_t gain)
+{
+    Wire.begin(23, 22);
+    _ADCInterface = new Adafruit_ADS1015;
+    _ADCInterface->setGain(gain);
+    _ADCInterface->begin();
+}
+void sensorManager::initAnalog(uint8_t address, adsGain_t gain)
+{
+    Wire.begin(23, 22);
+    _ADCInterface = new Adafruit_ADS1015;
+    _ADCInterface->setGain(gain);
+    _ADCInterface->begin();
+}
+
+String sensorManager::readAnalog_KF(String tagName1, uint8_t channel, float kFactor)
+{
+    float sensor_mV;
+    float calibrated;
+    int16_t results;
+    /* Be sure to update this value based on the IC and the gain settings! */
+    float multiplier = 0.125;
+    switch (channel)
+    {
+    case 1:
+        // CH1
+        results = _ADCInterface->readADC_Differential_0_1();
+        sensor_mV = _ADCInterface->computeVolts(results);
+        break;
+    case 2:
+        // CH2
+        results = _ADCInterface->readADC_Differential_2_3();
+        sensor_mV = _ADCInterface->computeVolts(results);
+        break;
+    }
+
+    calibrated = sensor_mV * kFactor;
+
+    String returnVal = "{\"tag_name\":\"" + tagName1 + "\","
+                                                       "\"value\":{\"unscaled\":" +
+                       sensor_mV +
+                       ",\"scaled\":" + calibrated + "}}";
+    return returnVal;
+}
+String sensorManager::readAnalog_S(String tagName2, uint8_t channel, float sensitivity)
+{
+    float sensor_mV;
+    float calibrated;
+    int16_t results;
+    /* Be sure to update this value based on the IC and the gain settings! */
+    float multiplier = 0.125;
+    switch (channel)
+    {
+    case 1:
+        // CH1
+        results = _ADCInterface->readADC_Differential_0_1();
+        sensor_mV = _ADCInterface->computeVolts(results);
+        break;
+    case 2:
+        // CH2
+        results = _ADCInterface->readADC_Differential_2_3();
+        sensor_mV = _ADCInterface->computeVolts(results);
+        break;
+    }
+
+    calibrated = sensor_mV / sensitivity;
+
+    String returnVal = "{\"tag_name\":\"" + tagName2 + "\","
+                                                       "\"value\":{\"unscaled\":" +
+                       sensor_mV +
+                       ",\"scaled\":" + calibrated + "}}";
+    return returnVal;
+}
+String sensorManager::readAnalog_MAP(String tagName2, uint8_t channel, float readoutMin, float readoutMax, float actualMin, float actualMax)
+{
+    float sensor_mV;
+    float calibrated;
+    int16_t results;
+    /* Be sure to update this value based on the IC and the gain settings! */
+    float multiplier = 0.125;
+    switch (channel)
+    {
+    case 1:
+        // CH1
+        results = _ADCInterface->readADC_Differential_0_1();
+        sensor_mV = _ADCInterface->computeVolts(results);
+        break;
+    case 2:
+        // CH2
+        results = _ADCInterface->readADC_Differential_2_3();
+        sensor_mV = _ADCInterface->computeVolts(results);
+        break;
+    }
+
+    calibrated = fmap(sensor_mV, readoutMin, readoutMax, actualMax, actualMax);
+
+    String returnVal = "{\"tag_name\":\"" + tagName2 + "\","
+                                                       "\"value\":{\"unscaled\":" +
+                       sensor_mV +
+                       ",\"scaled\":" + calibrated + "}}";
+    return returnVal;
+}
+
+String sensorManager::readDigital(String tagName, uint8_t channel)
+{
+    bool logic;
+    switch (channel)
+    {
+    case 1:
+        // CH1
+        logic = digitalRead(DI1);
+        break;
+    case 2:
+        // CH2
+        logic = digitalRead(DI2);
+        break;
+    case 3:
+        // CH3
+        logic = digitalRead(DI3);
+        break;
+    case 4:
+        // CH4
+        logic = digitalRead(DI4);
+        break;
+    }
+
+    String returnVal = "{\"tag_name\":\"" + tagName + "\","
+                                                      "\"value\":{\"unscaled\":" +
+                       logic +
+                       ",\"scaled\":" + logic + "}}";
+    return returnVal;
+}

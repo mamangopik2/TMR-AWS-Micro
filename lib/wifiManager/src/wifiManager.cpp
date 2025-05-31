@@ -166,7 +166,7 @@ void wifiManager::handleScanWifi()
     // {
     //     // Serial.println(WiFi.SSID(i));
     //     scannedSSID += DQUOTE + String(WiFi.SSID(i)) + DQUOTE + NL;
-    // }
+    // }F
     // // Serial.println(WiFi.SSID(n - 1));
     // scannedSSID += DQUOTE + String(WiFi.SSID(n - 1)) + DQUOTE;
     // Serial.println(scannedSSID);
@@ -180,7 +180,7 @@ void wifiManager::handleScanWifi()
     scanReq = false;
 }
 
-String fuseSensor(String existingJson, String newSensorJson)
+String wifiManager::fuseSensor(String existingJson, String newSensorJson)
 {
     int sensorStart = existingJson.indexOf("[");
     int sensorEnd = existingJson.lastIndexOf("]");
@@ -411,7 +411,7 @@ void wifiManager::handleSetWireless()
     String password = doc["password"] | defaultPWD;
     String ap_password = doc["ap_password"] | defaultAPPWD;
 
-    if (ap_password.length() < 8)
+    if (ap_password.length() < 6)
     {
         Serial.print(ap_password);
         Serial.println(" is too short");
@@ -419,14 +419,14 @@ void wifiManager::handleSetWireless()
         ap_password = defaultAPPWD;
     }
 
-    if (password.length() < 8)
+    if (password.length() < 6)
     {
         Serial.print(password);
         Serial.println(" is too short");
         Serial.println("write default value");
         password = defaultPWD;
     }
-    if (ssid.length() < 8)
+    if (ssid.length() < 6)
     {
         Serial.print(ssid);
         Serial.println(" is too short");
@@ -641,6 +641,8 @@ void wifiManager::run()
 
         if (WiFi.status() != WL_CONNECTED && scanReq == false)
         {
+            Serial.print("connecting to: ");
+            Serial.println(_SSID);
             Serial.println("reconnecting WiFi");
             Serial.println(_staticIPMode);
             WiFi.disconnect(true);
