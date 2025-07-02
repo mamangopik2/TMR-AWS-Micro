@@ -8,8 +8,8 @@ float fmap(float x, float in_min, float in_max, float out_min, float out_max)
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-String sensorManager::readModbusKF(String tagName1, modbusSensor modbus, uint16_t deviceID, uint16_t dataType,
-                                   uint8_t regType, uint16_t regAddr, uint16_t offsett, bool bigEndian, float kFactor)
+String sensorManager::readModbusKF(String EU, String RU, String tagName1, modbusSensor modbus, uint16_t deviceID, uint16_t dataType,
+                                   uint8_t regType, uint16_t regAddr, uint16_t offsett, bool bigEndian, float kFactor, float ofset)
 {
     String uncalibrated = "0";
     String calibrated = "0";
@@ -22,7 +22,7 @@ String sensorManager::readModbusKF(String tagName1, modbusSensor modbus, uint16_
                            ? modbus.readUnsignedWord(deviceID, IREG, regAddr)
                            : modbus.readUnsignedWord(deviceID, HREG, regAddr);
         uncalibrated = String(val);
-        calibrated = String((float)val * kFactor);
+        calibrated = String((val * kFactor) + ofset, 4);
         break;
     }
     case MODBUS_INT16:
@@ -31,7 +31,7 @@ String sensorManager::readModbusKF(String tagName1, modbusSensor modbus, uint16_
                           ? modbus.readSingleWord(deviceID, IREG, regAddr)
                           : modbus.readSingleWord(deviceID, HREG, regAddr);
         uncalibrated = String(val);
-        calibrated = String((float)val * kFactor);
+        calibrated = String((val * kFactor) + ofset, 4);
         break;
     }
     case MODBUS_UINT32:
@@ -40,7 +40,7 @@ String sensorManager::readModbusKF(String tagName1, modbusSensor modbus, uint16_
                            ? modbus.readUnsignedInteger(deviceID, IREG, regAddr, bigEndian)
                            : modbus.readUnsignedInteger(deviceID, HREG, regAddr, bigEndian);
         uncalibrated = String(val);
-        calibrated = String((float)val * kFactor);
+        calibrated = String((val * kFactor) + ofset, 4);
         break;
     }
     case MODBUS_INT32:
@@ -49,7 +49,7 @@ String sensorManager::readModbusKF(String tagName1, modbusSensor modbus, uint16_
                           ? modbus.readInteger(deviceID, IREG, regAddr, bigEndian)
                           : modbus.readInteger(deviceID, HREG, regAddr, bigEndian);
         uncalibrated = String(val);
-        calibrated = String((float)val * kFactor);
+        calibrated = String((val * kFactor) + ofset, 4);
         break;
     }
     case MODBUS_FLOAT:
@@ -58,7 +58,7 @@ String sensorManager::readModbusKF(String tagName1, modbusSensor modbus, uint16_
                         ? modbus.readFloat(deviceID, IREG, regAddr, bigEndian)
                         : modbus.readFloat(deviceID, HREG, regAddr, bigEndian);
         uncalibrated = String(val, 4);
-        calibrated = String(val * kFactor, 4);
+        calibrated = String((val * kFactor) + ofset, 4);
         break;
     }
     case MODBUS_DOUBLE:
@@ -67,14 +67,14 @@ String sensorManager::readModbusKF(String tagName1, modbusSensor modbus, uint16_
                          ? modbus.readDouble(deviceID, IREG, regAddr, bigEndian)
                          : modbus.readDouble(deviceID, HREG, regAddr, bigEndian);
         uncalibrated = String(val, 4);
-        calibrated = String(val * kFactor, 4);
+        calibrated = String((val * kFactor) + ofset, 4);
         break;
     }
     default:
     {
         uint16_t val = modbus.readUnsignedWord(deviceID, HREG, regAddr);
         uncalibrated = String(val);
-        calibrated = String((float)val * kFactor);
+        calibrated = String((float)(val * kFactor) + ofset);
         break;
     }
     }
@@ -82,11 +82,11 @@ String sensorManager::readModbusKF(String tagName1, modbusSensor modbus, uint16_
     String returnVal = "{\"tag_name\":\"" + tagName1 + "\","
                                                        "\"value\":{\"unscaled\":" +
                        uncalibrated +
-                       ",\"scaled\":" + calibrated + "}}";
+                       ",\"scaled\":" + calibrated + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
     return returnVal;
 }
 
-String sensorManager::readModbus(String tagName2, modbusSensor modbus, uint32_t deviceID, uint8_t dataType, uint16_t regType, uint16_t regAddr, uint8_t offsett, bool bigEndian, float sensitivity)
+String sensorManager::readModbus(String EU, String RU, String tagName2, modbusSensor modbus, uint32_t deviceID, uint8_t dataType, uint16_t regType, uint16_t regAddr, uint8_t offsett, bool bigEndian, float sensitivity, float ofset)
 {
     String uncalibrated = "0";
     String calibrated = "0";
@@ -99,7 +99,7 @@ String sensorManager::readModbus(String tagName2, modbusSensor modbus, uint32_t 
                            ? modbus.readUnsignedWord(deviceID, IREG, regAddr)
                            : modbus.readUnsignedWord(deviceID, HREG, regAddr);
         uncalibrated = String(val);
-        calibrated = String((float)val / sensitivity);
+        calibrated = String((val / sensitivity) + ofset, 4);
         break;
     }
     case MODBUS_INT16:
@@ -108,7 +108,7 @@ String sensorManager::readModbus(String tagName2, modbusSensor modbus, uint32_t 
                           ? modbus.readSingleWord(deviceID, IREG, regAddr)
                           : modbus.readSingleWord(deviceID, HREG, regAddr);
         uncalibrated = String(val);
-        calibrated = String((float)val / sensitivity);
+        calibrated = String((val / sensitivity) + ofset, 4);
         break;
     }
     case MODBUS_UINT32:
@@ -117,7 +117,7 @@ String sensorManager::readModbus(String tagName2, modbusSensor modbus, uint32_t 
                            ? modbus.readUnsignedInteger(deviceID, IREG, regAddr, bigEndian)
                            : modbus.readUnsignedInteger(deviceID, HREG, regAddr, bigEndian);
         uncalibrated = String(val);
-        calibrated = String((float)val / sensitivity);
+        calibrated = String((val / sensitivity) + ofset, 4);
         break;
     }
     case MODBUS_INT32:
@@ -126,7 +126,7 @@ String sensorManager::readModbus(String tagName2, modbusSensor modbus, uint32_t 
                           ? modbus.readInteger(deviceID, IREG, regAddr, bigEndian)
                           : modbus.readInteger(deviceID, HREG, regAddr, bigEndian);
         uncalibrated = String(val);
-        calibrated = String((float)val / sensitivity);
+        calibrated = String((val / sensitivity) + ofset, 4);
         break;
     }
     case MODBUS_FLOAT:
@@ -135,7 +135,7 @@ String sensorManager::readModbus(String tagName2, modbusSensor modbus, uint32_t 
                         ? modbus.readFloat(deviceID, IREG, regAddr, bigEndian)
                         : modbus.readFloat(deviceID, HREG, regAddr, bigEndian);
         uncalibrated = String(val, 4);
-        calibrated = String(val / sensitivity, 4);
+        calibrated = String((val / sensitivity) + ofset, 4);
         break;
     }
     case MODBUS_DOUBLE:
@@ -144,7 +144,7 @@ String sensorManager::readModbus(String tagName2, modbusSensor modbus, uint32_t 
                          ? modbus.readDouble(deviceID, IREG, regAddr, bigEndian)
                          : modbus.readDouble(deviceID, HREG, regAddr, bigEndian);
         uncalibrated = String(val, 4);
-        calibrated = String(val / sensitivity, 4);
+        calibrated = String((val / sensitivity) + ofset, 4);
         break;
     }
     default:
@@ -159,11 +159,11 @@ String sensorManager::readModbus(String tagName2, modbusSensor modbus, uint32_t 
     String returnVal = "{\"tag_name\":\"" + tagName2 + "\","
                                                        "\"value\":{\"unscaled\":" +
                        uncalibrated +
-                       ",\"scaled\":" + calibrated + "}}";
+                       ",\"scaled\":" + calibrated + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
     return returnVal;
 }
 
-String sensorManager::readModbus(String tagName3, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint32_t offsett, bool bigEndian, float readoutMin, float readoutMax, float actualMin, float actualMax)
+String sensorManager::readModbus(String EU, String RU, String tagName3, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint32_t offsett, bool bigEndian, float readoutMin, float readoutMax, float actualMin, float actualMax)
 {
     String uncalibrated = "0";
     String calibrated = "0";
@@ -235,14 +235,14 @@ String sensorManager::readModbus(String tagName3, modbusSensor modbus, uint16_t 
 
     String returnVal = "{\"tag_name\":\"" + tagName3 + "\"," +
                        "\"value\":{\"unscaled\":" + uncalibrated +
-                       ",\"scaled\":" + calibrated + "}}";
+                       ",\"scaled\":" + calibrated + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
 
     return returnVal;
 }
 
 void sensorManager::initAnalog(adsGain_t gain)
 {
-    Wire.begin(23, 22);
+    Wire.begin(21, 22);
     _ADCInterface = new Adafruit_ADS1015;
     _ADCInterface->setGain(gain);
     _ADCInterface->begin();
@@ -255,7 +255,7 @@ void sensorManager::initAnalog(uint8_t address, adsGain_t gain)
     _ADCInterface->begin();
 }
 
-String sensorManager::readAnalog_KF(String tagName1, uint8_t channel, float kFactor)
+String sensorManager::readAnalog_KF(String EU, String RU, String tagName1, uint8_t channel, float kFactor, float ofset)
 {
     float sensor_mV;
     float calibrated;
@@ -276,15 +276,15 @@ String sensorManager::readAnalog_KF(String tagName1, uint8_t channel, float kFac
         break;
     }
 
-    calibrated = sensor_mV * kFactor;
+    calibrated = (sensor_mV * kFactor) + ofset;
 
     String returnVal = "{\"tag_name\":\"" + tagName1 + "\","
                                                        "\"value\":{\"unscaled\":" +
                        sensor_mV +
-                       ",\"scaled\":" + calibrated + "}}";
+                       ",\"scaled\":" + String(calibrated, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
     return returnVal;
 }
-String sensorManager::readAnalog_S(String tagName2, uint8_t channel, float sensitivity)
+String sensorManager::readAnalog_S(String EU, String RU, String tagName2, uint8_t channel, float sensitivity, float ofset)
 {
     float sensor_mV;
     float calibrated;
@@ -305,15 +305,15 @@ String sensorManager::readAnalog_S(String tagName2, uint8_t channel, float sensi
         break;
     }
 
-    calibrated = sensor_mV / sensitivity;
+    calibrated = (sensor_mV / sensitivity) + ofset;
 
     String returnVal = "{\"tag_name\":\"" + tagName2 + "\","
                                                        "\"value\":{\"unscaled\":" +
                        sensor_mV +
-                       ",\"scaled\":" + calibrated + "}}";
+                       ",\"scaled\":" + String(calibrated, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
     return returnVal;
 }
-String sensorManager::readAnalog_MAP(String tagName2, uint8_t channel, float readoutMin, float readoutMax, float actualMin, float actualMax)
+String sensorManager::readAnalog_MAP(String EU, String RU, String tagName2, uint8_t channel, float readoutMin, float readoutMax, float actualMin, float actualMax)
 {
     float sensor_mV;
     float calibrated;
@@ -339,11 +339,11 @@ String sensorManager::readAnalog_MAP(String tagName2, uint8_t channel, float rea
     String returnVal = "{\"tag_name\":\"" + tagName2 + "\","
                                                        "\"value\":{\"unscaled\":" +
                        sensor_mV +
-                       ",\"scaled\":" + calibrated + "}}";
+                       ",\"scaled\":" + String(calibrated, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
     return returnVal;
 }
 
-String sensorManager::readDigital(String tagName, uint8_t channel)
+String sensorManager::readDigital(String EU, String RU, String tagName, uint8_t channel)
 {
     bool logic;
     switch (channel)
@@ -369,6 +369,7 @@ String sensorManager::readDigital(String tagName, uint8_t channel)
     String returnVal = "{\"tag_name\":\"" + tagName + "\","
                                                       "\"value\":{\"unscaled\":" +
                        logic +
-                       ",\"scaled\":" + logic + "}}";
+                       ",\"scaled\":" + logic + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+
     return returnVal;
 }

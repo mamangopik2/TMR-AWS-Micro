@@ -94,8 +94,8 @@
                         const row = document.createElement("tr");
                         row.innerHTML = `
                             <td>${sensor.tag_name}</td>
-                            <td>${sensor.value.unscaled}</td>
-                            <td>${sensor.value.scaled}</td>
+                            <td>${sensor.value.unscaled} ${sensor.raw_unit}</td>
+                            <td>${sensor.value.scaled} ${sensor.eng_unit}</td>
                             <td><a target="_blank" href="${base_url}/edit-sensor.html?index=${index}">Edit &#9998;</a></td>
                         `;
                         sensorTableBody.appendChild(row);

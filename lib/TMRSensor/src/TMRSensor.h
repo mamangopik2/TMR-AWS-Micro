@@ -10,8 +10,12 @@
 #include <Wire.h>
 #include <Adafruit_ADS1X15.h>
 
-#define RXD2 26
-#define TXD2 27
+#if defined USE_SD_LOG
+#include <SDStorage.h>
+#endif
+
+#define RXD2 27
+#define TXD2 26
 
 #define HREG 0
 #define IREG 1
@@ -57,15 +61,15 @@ private:
 public:
     Adafruit_ADS1015 *_ADCInterface;
     sensorManager(/* args */);
-    String readModbusKF(String tagName1, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint16_t offsett, bool bigEndian, float kFactor);
-    String readModbus(String tagName2, modbusSensor modbus, uint32_t deviceID, uint8_t dataType, uint16_t regType, uint16_t regAddr, uint8_t offsett, bool bigEndian, float sensitivity);
-    String readModbus(String tagName3, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint32_t offsett, bool bigEndian, float readoutMin, float readoutMax, float actualMin, float actualMax);
+    String readModbusKF(String EU, String RU, String tagName1, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint16_t offsett, bool bigEndian, float kFactor, float ofset);
+    String readModbus(String EU, String RU, String tagName2, modbusSensor modbus, uint32_t deviceID, uint8_t dataType, uint16_t regType, uint16_t regAddr, uint8_t offsett, bool bigEndian, float sensitivity, float ofset);
+    String readModbus(String EU, String RU, String tagName3, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint32_t offsett, bool bigEndian, float readoutMin, float readoutMax, float actualMin, float actualMax);
     void initAnalog(uint8_t address, adsGain_t gain);
     void initAnalog(adsGain_t gain);
-    String readAnalog_KF(String tagName1, uint8_t channel, float kFactor);
-    String readAnalog_S(String tagName2, uint8_t channel, float sensitivity);
-    String readAnalog_MAP(String tagName2, uint8_t channel, float readoutMin, float readoutMax, float actualMin, float actualMax);
-    String readDigital(String tagName, uint8_t channel);
+    String readAnalog_KF(String EU, String RU, String tagName1, uint8_t channel, float kFactor, float ofset);
+    String readAnalog_S(String EU, String RU, String tagName2, uint8_t channel, float sensitivity, float ofset);
+    String readAnalog_MAP(String EU, String RU, String tagName2, uint8_t channel, float readoutMin, float readoutMax, float actualMin, float actualMax);
+    String readDigital(String EU, String RU, String tagName, uint8_t channel);
     // String readDigital();
 };
 
@@ -74,7 +78,8 @@ class TMRInstrumentWeb
 private:
     /* data */
 public:
-    String _host = "", _token = "", _username = "", _password = "", _workspace = "";
+    String _host = "",
+           _token = "", _username = "", _password = "", _workspace = "";
     uint16_t _port;
 
     bool setHost(const char *host);
@@ -140,9 +145,8 @@ public:
 class scheduler
 {
 private:
-    /* data */
 public:
-    void manage(const String &data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute);
+    void manage(const String &data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag);
     void deepSleep(unsigned long durationMinute);
 };
 

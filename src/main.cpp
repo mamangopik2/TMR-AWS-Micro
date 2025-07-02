@@ -1,14 +1,19 @@
+#define USE_SD_LOG 1
 #include <Arduino.h>
 #include <TMRSensor.h>
 #include <WiFi.h>
 #include <wifiManager.h>
 #include <TMRemoteMQ.h>
+#include <CSVLogger.h>
+#include <esp_task_wdt.h>
 
 String sensorDataPacket;
 uint8_t secondCounter = 0;
 uint8_t runUpTimeMinute = 2;
 unsigned long minuteCounter = 0;
 unsigned long t0 = 0;
+unsigned long logger_interval = 0;
+uint8_t readyToLog = 0;
 
 modbusSensor mbInstrument;       // define modbus Instrument
 sensorManager instrumentManager; // define sensor manager
@@ -17,6 +22,7 @@ configReader sensorConfigurator;
 TMRInstrumentWeb cloud;
 scheduler systemScheduler;
 TMRemoteMQ remote;
+CSVLogger logger;
 
 String jsonString;
 
@@ -57,108 +63,6 @@ void clock(void *param)
   }
 }
 
-TaskHandle_t remoteTasks;
-
-void messageReceived(String &topic, String &payload)
-{
-  Serial.println("incoming: " + topic + " - " + payload);
-  if (topic == remote._SN + "/TMRAWS/device/beacon")
-  {
-    networkManager.beaconUpdatedTime = millis(); // update the beacon time to prevent controller entering sleep mode
-  }
-  if (topic == remote._SN + "/TMRAWS/device/sensor/update")
-  {
-    File file;
-    file = SPIFFS.open("/sensor.json", "w", true);
-    file.print(payload);
-    file.close();
-    networkManager.sensorUpdated = true; // set update flag to trigger the update
-  }
-  if (topic == remote._SN + "/TMRAWS/device/cloud/set")
-  {
-    File file;
-    file = SPIFFS.open("/cloud_config.json", "w", true);
-    file.print(payload);
-    file.close();
-    networkManager.cloudUpdated = true; // set update flag to trigger the update
-  }
-  if (topic == remote._SN + "/TMRAWS/device/time/set")
-  {
-    File file;
-    file = SPIFFS.open("/time_config.json", "w", true);
-    file.print(payload);
-    file.close();
-    networkManager.timeUpdated = true; // set update flag to trigger the update
-  }
-  if (topic == remote._SN + "/TMRAWS/device/site/set")
-  {
-    File file;
-    file = SPIFFS.open("/site_config.json", "w", true);
-    file.print(payload);
-    file.close();
-    networkManager.siteUpdated = true; // set update flag to trigger the update
-  }
-  if (topic == remote._SN + "/TMRAWS/device/sensor/add")
-  {
-    File myJsonFile;
-    myJsonFile = SPIFFS.open("/sensor.json", "r");
-    String jsonStringFromFile = myJsonFile.readString();
-    myJsonFile.close();
-
-    String jsonStringFromClient = payload;
-    String newJsonData = networkManager.fuseSensor(jsonStringFromFile, jsonStringFromClient);
-
-    Serial.print("from file");
-    Serial.println(jsonStringFromFile);
-    Serial.print("from client");
-    Serial.println(jsonStringFromClient);
-    Serial.print("fused");
-    Serial.println(newJsonData);
-
-    myJsonFile = SPIFFS.open("/sensor.json", "w", true);
-    myJsonFile.print(newJsonData);
-    myJsonFile.close();
-    networkManager.sensorUpdated = true; // set update flag to trigger the update
-  }
-}
-
-void remoteLoop(void *param)
-{
-  remote.begin("broker.hivemq.com", 1883, "TMR-123");
-  unsigned long t1 = millis();
-  while (1)
-  {
-    if (WiFi.status() == WL_CONNECTED)
-    {
-      if (!remote.mqtt_client->connected())
-      {
-        remote.connect();
-        remote.mqtt_client->onMessage(messageReceived);
-      }
-    }
-    remote.mqtt_client->loop();
-    if (millis() - t1 >= 2000)
-    {
-      String topic = remote._SN + "/TMRAWS/device/sensor/data";
-      bool status = remote.mqtt_client->publish(topic.c_str(), sensorDataPacket);
-      Serial.print("publish to:");
-      Serial.println(topic);
-
-      topic = remote._SN + "/TMRAWS/device/status";
-      status = remote.mqtt_client->publish(topic.c_str(), "ping");
-      Serial.print("publish to:");
-      Serial.println(topic);
-
-      topic = remote._SN + "/TMRAWS/device/sensor/list";
-      status = remote.mqtt_client->publish(topic.c_str(), sensorConfigurator._jsonString);
-      Serial.print("publish to:");
-      Serial.println(topic);
-      t1 = millis();
-    }
-    vTaskDelay(100);
-  }
-}
-
 void deepSleep(unsigned long durationMinute)
 {
   unsigned long durationUs = durationMinute * 1000000 * (60 - durationMinute);
@@ -169,10 +73,10 @@ void deepSleep(unsigned long durationMinute)
 
 void setup()
 {
+  esp_task_wdt_init(0xffffffff, true);
   Serial.begin(115200); // host serial
   xTaskCreatePinnedToCore(netManagerRoutine, "network manager", 8192, NULL, 5, &NetManagerTasks, 0);
   xTaskCreatePinnedToCore(clock, "time scheduler", 1024, NULL, 6, &timeTask, 1);
-  xTaskCreatePinnedToCore(remoteLoop, "remote", 8192, NULL, 4, &remoteTasks, 1);
 
   sensorConfigurator.loadFile();               // load sensors conf
   sensorConfigurator.loadSerialConfigFile();   // load serial comm conf
@@ -181,6 +85,17 @@ void setup()
   sensorConfigurator.loadCloudInfo();          // load cloud conf
   sensorConfigurator.conFigureSerial(&Serial); // run the configuration
 
+  remote.setNetManager(&networkManager);
+  remote.configurationManager = &sensorConfigurator;
+  remote.handledSensorMessage = &sensorDataPacket;
+  remote.startThread(8192, 4, 1);
+
+  logger.init();
+  logger.configurationManager = &sensorConfigurator;
+  logger.handledLoggingMessage = &sensorDataPacket;
+  logger.loggingFlag = &readyToLog;
+  logger.startThread(4096, 1, 1);
+
   mbInstrument.init(&Serial2); // init the modbus instrument
 
   cloud.setHost(sensorConfigurator.getCloudHost().c_str());
@@ -188,6 +103,7 @@ void setup()
   bool initTime = true;
   sensorConfigurator.checkTimeUpdate(&initTime);
   instrumentManager.initAnalog(GAIN_TWOTHIRDS);
+  cloud.reqWorkSpace();
 }
 
 void loop() // this loop runs on Core1 by default
@@ -201,27 +117,17 @@ void loop() // this loop runs on Core1 by default
   sensorConfigurator.checkTimeUpdate(&networkManager.timeUpdated);                        // check for update if there any changes on the time conf
   sensorConfigurator.checkCloudUpdate(&networkManager.cloudUpdated, &cloud);              // check for update if there any changes on the cloud conf if update occurs then update the cloud setup
   sensorConfigurator.checkRTCUpdate(&networkManager.RTCUpdated, &networkManager);
-  vTaskDelay(500 / portTICK_PERIOD_MS); // delay
 
   systemScheduler.manage(sensorDataPacket,
                          &sensorConfigurator,
                          &networkManager,
                          &cloud,
                          &runUpTimeMinute,
-                         &minuteCounter);
-
-  Serial.print(minuteCounter);
-  Serial.print(':');
-  Serial.println(secondCounter);
-  Serial.print("beacon Time:");
-  Serial.println(networkManager.getBeaconTime());
-  Serial.print("beacon Time:");
-  Serial.print(millis() - networkManager.getBeaconTime());
-  Serial.print("---thresshold Time:");
-  Serial.println((1 * 60 * 1000));
+                         &minuteCounter, &readyToLog);
 
   uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
   Serial.print("Free Heap: ");
   Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
   Serial.println(" KB");
+  vTaskDelay(5000 / portTICK_PERIOD_MS); // delay
 }

@@ -1,5 +1,5 @@
 #include "TMRSensor.h"
-void scheduler::manage(const String &data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute)
+void scheduler::manage(const String &data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag)
 {
     bool status;
     if (conf->getCloudInterval().toInt() >= 5) // if the sending interval > 5 minutes, activate sleep mode
@@ -12,15 +12,18 @@ void scheduler::manage(const String &data, configReader *conf, wifiManager *netw
             {
                 if (conf->getTimeSource() == "NTP")
                 {
+                    *logFlag = 1;
                     status = cloud->publishBulk(data, conf->getISOTimeNTP());
                 }
                 else
                 {
+                    *logFlag = 1;
                     status = cloud->publishBulk(data, conf->getISOTimeRTC());
                 }
                 if (status == true)
                 {
                     Serial.println("deep sleep");
+                    *logFlag = 1;
                     deepSleep(conf->getCloudInterval().toInt() - *runUpTimeMinute);
                 }
             }
@@ -39,10 +42,12 @@ void scheduler::manage(const String &data, configReader *conf, wifiManager *netw
         {
             if (conf->getTimeSource() == "NTP")
             {
+                *logFlag = 1;
                 cloud->publishBulk(data, conf->getISOTimeNTP());
             }
             else
             {
+                *logFlag = 1;
                 cloud->publishBulk(data, conf->getISOTimeRTC());
             }
             *clockMinute = 0; // reset the minute timer after send the data
