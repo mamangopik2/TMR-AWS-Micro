@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Device Info</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            color: white;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            vertical-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            color: black;
+        }
+
+        .container img {
+            max-width: 120px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dropdown" style="position: absolute; top: 0; left: 2%;">
+        <button class="dropdown-button">&#9776;</button>
+        <div class="dropdown-content" id="dropdown-buttons">
+        </div>
+    </div>
+    <script src="header-button.js"></script>
+
+    <div class="container">
+        <h2>Device Information</h2>
+        <img src="logo.png" alt="TMR logo">
+
+        <table id="informationTable">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Filled dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <script src="beacon.js"></script>
+    <script>
+        const base_url = window.location.origin;
+        const urlRead = base_url + '/read-device-info';
+        const sensorTableBody = document.getElementById("informationTable").querySelector("tbody");
+
+        function fetchWithTimeout(resource, options = {}) {
+            const { timeout = 1000 } = options;
+
+            return Promise.race([
+                fetch(resource),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error("Timeout after 1s")), timeout)
+                )
+            ]);
+        }
+
+        function loadSensorData() {
+            fetchWithTimeout(urlRead, { timeout: 1000 })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    sensorTableBody.innerHTML = "";
+                    for (var key in data) {
+                        console.log(key);
+                        console.log(data[key]);
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td>${key.replace('_', ' ').toUpperCase()}</td>
+                            <td>${data[key]}</td>
+                        `;
+                        sensorTableBody.appendChild(row);
+                    }
+                })
+                .catch(error => {
+                    console.error("Fetch error:", error.message);
+                    // sensorTableBody.innerHTML = `<tr><td colspan="4" style="color: red;">Error: ${error.message}</td></tr>`;
+                });
+        }
+
+        // Load immediately and then every 2 seconds
+        loadSensorData();
+        setInterval(loadSensorData, 10000);
+
+        // Navigation
+        document.getElementById("button_network").onclick = () => window.location = base_url + '/net-form.html';
+        document.getElementById("button_sensors").onclick = () => window.location = base_url + '/sensors.html';
+        document.getElementById("button_interfaces").onclick = () => window.location = base_url + '/interfaces.html';
+        document.getElementById("button_site_setup").onclick = () => window.location = base_url + '/site_setup.html';
+        document.getElementById("button_time_setup").onclick = () => window.location = base_url + '/time_setup.html';
+        document.getElementById("button_cloud_setup").onclick = () => window.location = base_url + '/cloud_setup.html';
+        document.getElementById("button_OTA").onclick = () => window.location = base_url + '/OTA.html';
+        document.getElementById("button_configured_sensor").onclick = () => window.location = base_url + '/data_viewer.html';
+        document.getElementById("edit_sensor_list_button").onclick = () => {
+            window.location = base_url + '/edit-sensors.html';
+        };
+    </script>
+
+</body>
+
+</html>

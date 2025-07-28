@@ -6,6 +6,8 @@
 #include <TMRemoteMQ.h>
 #include <CSVLogger.h>
 #include <esp_task_wdt.h>
+#include <TMRLicenseManager.h>
+#include <serialTool.h>
 
 String sensorDataPacket;
 uint8_t secondCounter = 0;
@@ -14,6 +16,8 @@ unsigned long minuteCounter = 0;
 unsigned long t0 = 0;
 unsigned long logger_interval = 0;
 uint8_t readyToLog = 0;
+String fileLists;
+String deviceInfo;
 
 modbusSensor mbInstrument;       // define modbus Instrument
 sensorManager instrumentManager; // define sensor manager
@@ -23,22 +27,10 @@ TMRInstrumentWeb cloud;
 scheduler systemScheduler;
 TMRemoteMQ remote;
 CSVLogger logger;
+TMRLicenseManager licensing;
+serialTool systemSerial;
 
 String jsonString;
-
-TaskHandle_t NetManagerTasks;
-void netManagerRoutine(void *param)
-{
-  networkManager.begin();
-  networkManager.wifiTimeout = 5000;
-  networkManager.enableDHCP = true;          // default value is false
-  networkManager.automaticAPDisable = false; // default is true, after connected to WiFi the AP is disabled
-  while (1)
-  {
-    networkManager.run();
-    vTaskDelay(1);
-  }
-}
 
 TaskHandle_t timeTask;
 void clock(void *param)
@@ -63,20 +55,38 @@ void clock(void *param)
   }
 }
 
-void deepSleep(unsigned long durationMinute)
+String getDeviceInfo()
 {
-  unsigned long durationUs = durationMinute * 1000000 * (60 - durationMinute);
-  esp_sleep_enable_timer_wakeup(durationUs);
-  Serial.flush();
-  esp_deep_sleep_start();
+  StaticJsonDocument<128> info;
+  info["battery_voltage"] = 3.7;
+  info["SN"] = "SN12345678";
+  info["site"] = sensorConfigurator._siteName;
+  info["plant"] = sensorConfigurator._plantName;
+  info["device_name"] = sensorConfigurator._deviceName;
+  info["device_time"] = sensorConfigurator.getISOTimeRTC();
+  info["local_IP"] = WiFi.localIP();
+
+  String jsonString;
+  serializeJson(info, jsonString);
+  return jsonString;
 }
 
 void setup()
 {
+  setCpuFrequencyMhz(240);
   esp_task_wdt_init(0xffffffff, true);
+  Serial.setRxBufferSize(4096);
   Serial.begin(115200); // host serial
-  xTaskCreatePinnedToCore(netManagerRoutine, "network manager", 8192, NULL, 5, &NetManagerTasks, 0);
+  systemSerial.hostSerial = &Serial;
+  systemSerial.startThread(8192, 1, 1);
+
   xTaskCreatePinnedToCore(clock, "time scheduler", 1024, NULL, 6, &timeTask, 1);
+
+  networkManager.microSD = logger.microSD;
+
+  networkManager.logFilelist = &fileLists;
+  networkManager.deviceInfo = &deviceInfo;
+  networkManager.startThread(4096, 5, 0);
 
   sensorConfigurator.loadFile();               // load sensors conf
   sensorConfigurator.loadSerialConfigFile();   // load serial comm conf
@@ -85,10 +95,12 @@ void setup()
   sensorConfigurator.loadCloudInfo();          // load cloud conf
   sensorConfigurator.conFigureSerial(&Serial); // run the configuration
 
+  remote.deviceInfo = &deviceInfo;
+  remote.logFileList = &fileLists;
   remote.setNetManager(&networkManager);
   remote.configurationManager = &sensorConfigurator;
   remote.handledSensorMessage = &sensorDataPacket;
-  remote.startThread(8192, 4, 1);
+  remote.startThread(24576, 4, 1);
 
   logger.init();
   logger.configurationManager = &sensorConfigurator;
@@ -104,11 +116,12 @@ void setup()
   sensorConfigurator.checkTimeUpdate(&initTime);
   instrumentManager.initAnalog(GAIN_TWOTHIRDS);
   cloud.reqWorkSpace();
+  // networkManager.csvLogger = &logger; // pass the logger refference to the net manager to give csv files access
 }
 
 void loop() // this loop runs on Core1 by default
 {
-
+unlicensed:
   sensorDataPacket = sensorConfigurator.getSensorsValue(instrumentManager, mbInstrument); // sensor data packet which will be send to the cloud
   networkManager.globalMessage = sensorDataPacket;                                        // set the broadcast message for handling sensor value viewer
   sensorConfigurator.checkUpdate(&networkManager.sensorUpdated);                          // check for update if there any changes on the sensor data conf
@@ -116,18 +129,45 @@ void loop() // this loop runs on Core1 by default
   sensorConfigurator.checkSiteUpdate(&networkManager.siteUpdated);                        // check for update if there any changes on the site conf
   sensorConfigurator.checkTimeUpdate(&networkManager.timeUpdated);                        // check for update if there any changes on the time conf
   sensorConfigurator.checkCloudUpdate(&networkManager.cloudUpdated, &cloud);              // check for update if there any changes on the cloud conf if update occurs then update the cloud setup
-  sensorConfigurator.checkRTCUpdate(&networkManager.RTCUpdated, &networkManager);
+  sensorConfigurator.checkRTCUpdate(&networkManager.RTCUpdated, &networkManager);         // check for update if there any changes on the RTC Configuration update
 
-  systemScheduler.manage(sensorDataPacket,
-                         &sensorConfigurator,
-                         &networkManager,
-                         &cloud,
-                         &runUpTimeMinute,
-                         &minuteCounter, &readyToLog);
+  // Serial.print("Original:");
+  // Serial.println("00:1A:2B:3C:4D:5E");
+  // Serial.print("encrypted:");
+  // Serial.println("GH=bH@fJ^$N{En~.`");
+  // Serial.print("decrypted:");
+  // Serial.println(licensing.decrypt("GH=bH@fJ^$N{En~.`"));
 
   uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
   Serial.print("Free Heap: ");
   Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
   Serial.println(" KB");
+
+  if (remote.fail_counter > 20 || cloud.fail_counter > 10)
+  {
+    ESP.restart();
+  }
+
   vTaskDelay(5000 / portTICK_PERIOD_MS); // delay
+
+  if (!licensing.checkLicense())
+  {
+    goto unlicensed;
+  }
+
+  try
+  {
+    systemScheduler.manage(sensorDataPacket,
+                           &sensorConfigurator,
+                           &networkManager,
+                           &cloud,
+                           &runUpTimeMinute,
+                           &minuteCounter, &readyToLog);
+    fileLists = logger.microSD->listDir(logger.microSD->card, "/", 1);
+    deviceInfo = getDeviceInfo();
+  }
+  catch (const std::exception &e)
+  {
+    Serial.println(e.what());
+  }
 }

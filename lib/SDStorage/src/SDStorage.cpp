@@ -35,43 +35,100 @@ void SDStorage::init()
     Serial.printf("SD Card Size: %lluMB\n", cardSize);
 }
 
-void SDStorage::listDir(fs::FS &fs, const char *dirname, uint8_t levels)
-{
-    Serial.printf("Listing directory: %s\n", dirname);
+// String SDStorage::listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+// {
+//     Serial.printf("Listing directory: %s\n", dirname);
 
+//     File root = fs.open(dirname);
+//     if (!root)
+//     {
+//         // Serial.println("Failed to open directory");
+//         return "{\"filename\":[],\"filesize\":[]}";
+//     }
+//     if (!root.isDirectory())
+//     {
+//         // Serial.println("Not a directory");
+//         return "{\"filename\":[],\"filesize\":[]}";
+//     }
+//     uint16_t fileIndex = 0;
+//     String fileInfo = "{\"filename\":[";
+//     File file = root.openNextFile();
+//     while (file)
+//     {
+//         if (file.isDirectory())
+//         {
+//             // Serial.print("  DIR : ");
+//             // Serial.println(file.name());
+//             if (levels)
+//             {
+//                 listDir(fs, file.name(), levels - 1);
+//             }
+//         }
+//         else
+//         {
+//             // Serial.print("  FILE: ");
+//             // Serial.print(file.name());
+//             // Serial.print("  SIZE: ");
+//             // Serial.println(file.size());
+//             if (fileIndex > 0)
+//             {
+//                 fileInfo += ",";
+//             }
+//             fileInfo += "\"";
+//             fileInfo += String(file.name());
+//             fileInfo += "\"";
+//             fileIndex++;
+//         }
+//         file = root.openNextFile();
+//     }
+//     fileInfo += "]}";
+//     return fileInfo;
+// }
+
+String SDStorage::listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+{
     File root = fs.open(dirname);
-    if (!root)
+    if (!root || !root.isDirectory())
     {
-        Serial.println("Failed to open directory");
-        return;
+        return "{\"filename\":[],\"filesize\":[]}";
     }
-    if (!root.isDirectory())
-    {
-        Serial.println("Not a directory");
-        return;
-    }
+
+    String fileInfo = "{\"filename\":[";
+    String fileSizes = "\"filesize\":[";
+    uint16_t fileIndex = 0;
 
     File file = root.openNextFile();
     while (file)
     {
         if (file.isDirectory())
         {
-            Serial.print("  DIR : ");
-            Serial.println(file.name());
             if (levels)
             {
-                listDir(fs, file.name(), levels - 1);
+                // Recursively list subdirectories, but discard the result (optional: you could merge the subdirectory results here)
+                listDir(fs, file.path(), levels - 1);
             }
         }
         else
         {
-            Serial.print("  FILE: ");
-            Serial.print(file.name());
-            Serial.print("  SIZE: ");
-            Serial.println(file.size());
+            if (fileIndex > 0)
+            {
+                fileInfo += ",";
+                fileSizes += ",";
+            }
+            fileInfo += "\"";
+            fileInfo += String(file.path()); // Use file.path() for the full path
+            fileInfo += "\"";
+
+            fileSizes += String(file.size());
+            fileIndex++;
         }
         file = root.openNextFile();
     }
+
+    fileInfo += "],";
+    fileSizes += "]}";
+
+    return fileInfo + fileSizes;
 }
 
 void SDStorage::createDir(fs::FS &fs, const char *path)

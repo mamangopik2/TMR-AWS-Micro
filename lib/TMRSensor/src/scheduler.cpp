@@ -6,8 +6,8 @@ void scheduler::manage(const String &data, configReader *conf, wifiManager *netw
     {
         if (*clockMinute >= *runUpTimeMinute)
         {
-            Serial.print("sending, Timesource :");
-            Serial.println(conf->getTimeSource());
+            // Serial.print("sending, Timesource :");
+            // Serial.println(conf->getTimeSource());
             if (millis() - networkManager->getBeaconTime() > (1 * 60 * 1000)) // activate sleep after 10 minutes from client finished configuration
             {
                 if (conf->getTimeSource() == "NTP")
@@ -22,9 +22,13 @@ void scheduler::manage(const String &data, configReader *conf, wifiManager *netw
                 }
                 if (status == true)
                 {
-                    Serial.println("deep sleep");
+                    // Serial.println("deep sleep");
                     *logFlag = 1;
                     deepSleep(conf->getCloudInterval().toInt() - *runUpTimeMinute);
+                }
+                else
+                {
+                    *clockMinute = 0;
                 }
             }
             else
@@ -35,9 +39,9 @@ void scheduler::manage(const String &data, configReader *conf, wifiManager *netw
     }
     else
     {
-        Serial.print("sending, Timesource :");
-        Serial.println(conf->getTimeSource());
-        // send every x minutes without sleep();
+        // Serial.print("sending, Timesource :");
+        // Serial.println(conf->getTimeSource());
+        //  send every x minutes without sleep();
         if (*clockMinute >= conf->getCloudInterval().toInt())
         {
             if (conf->getTimeSource() == "NTP")
@@ -59,6 +63,6 @@ void scheduler::deepSleep(unsigned long durationMinute)
 {
     unsigned long durationUs = durationMinute * 1000000 * (60 - durationMinute);
     esp_sleep_enable_timer_wakeup(durationUs);
-    Serial.flush();
+    // Serial.flush();
     esp_deep_sleep_start();
 }

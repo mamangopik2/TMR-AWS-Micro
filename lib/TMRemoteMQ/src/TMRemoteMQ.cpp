@@ -2,7 +2,7 @@
 WiFiClient net;
 void TMRemoteMQ::begin(String broker, int port, String SN)
 {
-    mqtt_client = new MQTTClient(4096, 4096);
+    mqtt_client = new MQTTClient(8192, 8192);
     mqtt_net = new WiFiClient;
     _broker = broker;
     _port = port;
@@ -14,10 +14,10 @@ void TMRemoteMQ::begin(String broker, int port, String SN)
 bool TMRemoteMQ::connect()
 {
     String channel = String(WiFi.macAddress());
-    Serial.print("connecting...");
+    // Serial.print("connecting...");
     while (!mqtt_client->connect(channel.c_str(), "public", "public"))
     {
-        Serial.print(".");
+        // Serial.print(".");
         vTaskDelay(1000);
     }
     String topic = _SN + "/TMRAWS/device/beacon";
@@ -34,6 +34,7 @@ bool TMRemoteMQ::connect()
     mqtt_client->subscribe(topic.c_str());
     topic = _SN + "/TMRAWS/device/time/set";
     mqtt_client->subscribe(topic.c_str());
+    mqtt_client->subscribe("TMR-123/TMRAWS/device/logger/get");
     return 1;
 }
 
@@ -44,7 +45,7 @@ void TMRemoteMQ::setNetManager(wifiManager *netManager)
 
 void TMRemoteMQ::messageReceived(String &topic, String &payload)
 {
-    Serial.println("incoming: " + topic + " - " + payload);
+    // Serial.println("incoming: " + topic + " - " + payload);
     if (topic == this->_SN + "/TMRAWS/device/beacon")
     {
         networkManager->beaconUpdatedTime = millis(); // update the beacon time to prevent controller entering sleep mode
@@ -81,6 +82,12 @@ void TMRemoteMQ::messageReceived(String &topic, String &payload)
         file.close();
         networkManager->siteUpdated = true; // set update flag to trigger the update
     }
+    if (topic == "TMR-123/TMRAWS/device/logger/get")
+    {
+        // Serial.println("streaming CSV file.....");
+        // Serial.println(payload);
+        this->publishFile(payload);
+    }
     if (topic == this->_SN + "/TMRAWS/device/sensor/add")
     {
         File myJsonFile;
@@ -91,12 +98,12 @@ void TMRemoteMQ::messageReceived(String &topic, String &payload)
         String jsonStringFromClient = payload;
         String newJsonData = networkManager->fuseSensor(jsonStringFromFile, jsonStringFromClient);
 
-        Serial.print("from file");
-        Serial.println(jsonStringFromFile);
-        Serial.print("from client");
-        Serial.println(jsonStringFromClient);
-        Serial.print("fused");
-        Serial.println(newJsonData);
+        // Serial.print("from file");
+        // Serial.println(jsonStringFromFile);
+        // Serial.print("from client");
+        // Serial.println(jsonStringFromClient);
+        // Serial.print("fused");
+        // Serial.println(newJsonData);
 
         myJsonFile = SPIFFS.open("/sensor.json", "w", true);
         myJsonFile.print(newJsonData);
@@ -122,6 +129,123 @@ void TMRemoteMQ::setSiteUpdateFlag(bool *flag)
     _flagSiteUpdate = flag;
 }
 
+void TMRemoteMQ::publishFile(String filepath)
+{
+    File file;
+
+    // Try to open the file from SPIFFS or SD
+    if (SPIFFS.exists(filepath))
+    {
+        file = SPIFFS.open(filepath, "r");
+    }
+    else if (SD.exists(filepath))
+    {
+        file = SD.open(filepath, "r");
+    }
+    else
+    {
+        // Send error message if file not found
+        StaticJsonDocument<256> errorDoc;
+        errorDoc["file_name"] = filepath;
+        errorDoc["batch_total"] = 0;
+        errorDoc["batch_number"] = -1;
+        errorDoc["data"] = "File Not Found";
+        String errorPayload;
+        serializeJson(errorDoc, errorPayload);
+        String topic = this->_SN + "/TMRAWS/data/log/streamCSV";
+        uint8_t status = this->mqtt_client->publish(topic.c_str(), errorPayload.c_str());
+        // mqtt_client->publish("/TST/TMR/streamCSV", errorPayload.c_str());
+        return;
+    }
+
+    const size_t bufferSize = 4 * 1024; // 10 KB buffer
+    String buffer = "";
+    int batchNumber = 1;
+    int batchTotal = 0; // Unknown unless pre-scanned
+
+    // Read and buffer file data
+    while (file.available())
+    {
+        String line = file.readStringUntil('\n');
+        if (line.length() < 5)
+        {
+            break;
+        }
+        buffer += line + "\n";
+
+        // If buffer reaches the size limit, send it
+        if (buffer.length() >= bufferSize)
+        {
+            StaticJsonDocument<8192> doc;
+            doc["file_name"] = filepath;
+            doc["batch_total"] = batchTotal; // 0 means unknown
+            doc["batch_number"] = batchNumber;
+            doc["data"] = buffer;
+
+            String jsonPayload;
+            serializeJson(doc, jsonPayload);
+            String topic = this->_SN + "/TMRAWS/data/log/streamCSV";
+        sending_packet1:
+            uint8_t status = this->mqtt_client->publish(topic.c_str(), jsonPayload.c_str());
+            while (status != 1)
+            {
+                vTaskDelay(100);
+                goto sending_packet1;
+            }
+            // Serial.printf("[File Stream] Sent batch %d, size: %d bytes\n", batchNumber, buffer.length());
+
+            buffer = "";
+            batchNumber++;
+            vTaskDelay(1); // Avoid flooding
+        }
+    }
+
+    // Send remaining data in buffer
+    if (buffer.length() > 0)
+    {
+        StaticJsonDocument<8192> doc;
+        doc["file_name"] = filepath;
+        doc["batch_total"] = batchTotal;
+        doc["batch_number"] = batchNumber;
+        doc["data"] = buffer;
+
+        String jsonPayload;
+        serializeJson(doc, jsonPayload);
+        String topic = this->_SN + "/TMRAWS/data/log/streamCSV";
+    sending_packet2:
+        uint8_t status = this->mqtt_client->publish(topic.c_str(), jsonPayload.c_str());
+        while (status != 1)
+        {
+            vTaskDelay(100);
+            goto sending_packet2;
+        }
+        // mqtt_client->publish("/TST/TMR/streamCSV", jsonPayload.c_str());
+        // Serial.printf("[File Stream] Sent batch %d, size: %d bytes\n", batchNumber, buffer.length());
+    }
+
+    // Send EOF marker
+    StaticJsonDocument<2048> eofDoc;
+    eofDoc["file_name"] = filepath;
+    eofDoc["batch_total"] = batchNumber;
+    eofDoc["batch_number"] = -1;
+    eofDoc["data"] = "EOF";
+    String eofPayload;
+    serializeJson(eofDoc, eofPayload);
+    String topic = this->_SN + "/TMRAWS/data/log/streamCSV";
+sending_packet3:
+    uint8_t status = this->mqtt_client->publish(topic.c_str(), eofPayload.c_str());
+    while (status != 1)
+    {
+        vTaskDelay(100);
+        goto sending_packet3;
+    }
+    // mqtt_client->publish("/TST/TMR/streamCSV", eofPayload.c_str());
+    // Serial.println("[File Stream] Sent EOF");
+
+    file.close();
+    batchNumber = 0;
+}
+
 void TMRemoteMQ::startThread(uint32_t stackSize, UBaseType_t priority, BaseType_t core)
 {
     TaskHandle_t taskHandle;
@@ -140,37 +264,95 @@ void TMRemoteMQ::startThread(uint32_t stackSize, UBaseType_t priority, BaseType_
 void TMRemoteMQ::run(void *parameter)
 {
     unsigned long t1 = millis();
+    unsigned long t2 = millis();
     TMRemoteMQ *remote = static_cast<TMRemoteMQ *>(parameter);
-    remote->begin("broker.hivemq.com", 1883, "TMR-123");
+    remote->begin(MQTT_BROKER, MQTT_PORT, "TMR-123");
     while (true)
     {
-        if (WiFi.status() == WL_CONNECTED)
+        try
         {
-            if (!remote->mqtt_client->connected())
+
+            if (WiFi.status() == WL_CONNECTED)
             {
-                remote->connect();
+                /* code */
+                if (!remote->mqtt_client->connected())
+                {
+                    remote->connect();
+                    remote->fail_counter++;
+                    remote->fail_counter = 0;
+                }
+                // check internet connection every 10 after user left configurataion page
+                if (millis() - remote->networkManager->getBeaconTime() > (1 * 60 * 1000))
+                {
+                    if (millis() - t2 >= 10000)
+                    {
+                        if (!Ping.ping(MQTT_BROKER))
+                        {
+                            remote->mqtt_client->disconnect();
+                            remote->begin(MQTT_BROKER, MQTT_PORT, "TMR-123");
+                        }
+                        t2 = millis();
+                    }
+                }
+
+                remote->mqtt_client->loop();
+
+                if (millis() - t1 >= 5000)
+                {
+                    String topic = remote->_SN + "/TMRAWS/device/sensor/data";
+                    bool status = remote->mqtt_client->publish(topic.c_str(), remote->handledSensorMessage->c_str());
+                    if (status)
+                    {
+                        // //Serial.print("publish to:");
+                        // //Serial.println(topic);
+                        // free(&status);
+                    }
+
+                    topic = remote->_SN + "/TMRAWS/device/status";
+                    status = remote->mqtt_client->publish(topic.c_str(), "ping");
+                    if (status)
+                    {
+                        // //Serial.print("publish to:");
+                        // //Serial.println(topic);
+                        // free(&status);
+                    }
+
+                    topic = remote->_SN + "/TMRAWS/device/sensor/list";
+                    status = remote->mqtt_client->publish(topic.c_str(), remote->configurationManager->_jsonString);
+                    if (status)
+                    {
+                        // //Serial.print("publish to:");
+                        // //Serial.println(topic);
+                        // free(&status);
+                    }
+
+                    topic = remote->_SN + "/TMRAWS/device/info";
+                    status = remote->mqtt_client->publish(topic.c_str(), *remote->deviceInfo);
+                    if (status)
+                    {
+                        // //Serial.print("publish to:");
+                        // //Serial.println(topic);
+                        // free(&status);
+                    }
+
+                    topic = remote->_SN + "/TMRAWS/data/log/list";
+                    status = remote->mqtt_client->publish(topic.c_str(), *remote->logFileList);
+                    if (status)
+                    {
+                        // //Serial.print("publish to:");
+                        // //Serial.println(topic);
+                        // free(&status);
+                    }
+
+                    t1 = millis();
+                }
             }
         }
-        remote->mqtt_client->loop();
-
-        if (millis() - t1 >= 2000)
+        catch (const std::exception &e)
         {
-            String topic = remote->_SN + "/TMRAWS/device/sensor/data";
-            bool status = remote->mqtt_client->publish(topic.c_str(), remote->handledSensorMessage->c_str());
-            Serial.print("publish to:");
-            Serial.println(topic);
-
-            topic = remote->_SN + "/TMRAWS/device/status";
-            status = remote->mqtt_client->publish(topic.c_str(), "ping");
-            Serial.print("publish to:");
-            Serial.println(topic);
-
-            topic = remote->_SN + "/TMRAWS/device/sensor/list";
-            status = remote->mqtt_client->publish(topic.c_str(), remote->configurationManager->_jsonString);
-            Serial.print("publish to:");
-            Serial.println(topic);
-            t1 = millis();
+            // Serial.println(e.what());
         }
+
         vTaskDelay(100);
     }
 }

@@ -14,7 +14,7 @@ bool CSVLogger::logJsonArray(String filename, String timestampISO, String data)
 
         // buffer_logger = Timestamp + ";" + sensorDataPacket + "\n";
 
-        StaticJsonDocument<4096> doc;
+        StaticJsonDocument<8192> doc;
         DeserializationError error = deserializeJson(doc, data);
 
         if (error)
@@ -34,7 +34,6 @@ bool CSVLogger::logJsonArray(String filename, String timestampISO, String data)
             float unscaled = sensor["value"]["unscaled"];
             String eng = sensor["eng_unit"];
             String raw = sensor["raw_unit"];
-            // buffer_logger += (timestampISO + ",", tag + "," + String(scaled, 4) + "," + String(unscaled, 4) + "," + eng + "," + raw + "\n");
             buffer_logger += (String(timestampISO) + String(",") + (",", tag + "," + String(scaled, 4) + "," + String(unscaled, 4) + "," + eng + "," + raw + "\n"));
         }
 
@@ -90,36 +89,43 @@ void CSVLogger::run(void *parameter)
     logger->setLogInterval(3000);
     while (true)
     {
-        String dateString = "";
-        String ISOTimestamp = "";
-        Serial.println(logger->configurationManager->getTimeSource());
-        if (logger->configurationManager->getTimeSource() == "NTP")
+        try
         {
-            ISOTimestamp = logger->configurationManager->getISOTimeNTP();
-        }
-        if (logger->configurationManager->getTimeSource() == "RTC")
-        {
-            ISOTimestamp = logger->configurationManager->getISOTimeRTC();
-        }
-        Serial.println(ISOTimestamp);
-        if (ISOTimestamp != "0000-00-00T00:00:00Z" && ISOTimestamp != "")
-        {
-            Serial.println("CSVLogger RTOS task running...");
-            for (uint32_t i = 0; i < ISOTimestamp.length(); i++)
+            /* code */
+            String dateString = "";
+            String ISOTimestamp = "";
+            Serial.println(logger->configurationManager->getTimeSource());
+            if (logger->configurationManager->getTimeSource() == "NTP")
             {
-                if (ISOTimestamp[i] == 'T')
+                ISOTimestamp = logger->configurationManager->getISOTimeNTP();
+            }
+            if (logger->configurationManager->getTimeSource() == "RTC")
+            {
+                ISOTimestamp = logger->configurationManager->getISOTimeRTC();
+            }
+            Serial.println(ISOTimestamp);
+            if (ISOTimestamp != "0000-00-00T00:00:00Z" && ISOTimestamp != "")
+            {
+                for (uint32_t i = 0; i < ISOTimestamp.length(); i++)
                 {
-                    break;
+                    if (ISOTimestamp[i] == 'T')
+                    {
+                        break;
+                    }
+                    dateString += ISOTimestamp[i];
                 }
-                dateString += ISOTimestamp[i];
-            }
-            String filename = "/DATA_LOG_" + dateString + ".csv";
+                String filename = "/DATA_LOG_" + dateString + ".csv";
 
-            if (logger->handledLoggingMessage->length() > 10 && *logger->loggingFlag == 1)
-            {
-                logger->logJsonArray(filename, ISOTimestamp, *logger->handledLoggingMessage);
-                *logger->loggingFlag = 0;
+                if (logger->handledLoggingMessage->length() > 10 && *logger->loggingFlag == 1)
+                {
+                    logger->logJsonArray(filename, ISOTimestamp, *logger->handledLoggingMessage);
+                    *logger->loggingFlag = 0;
+                }
             }
+        }
+        catch (const std::exception &e)
+        {
+            Serial.println(e.what());
         }
         vTaskDelay(logger->getLogInterval());
     }

@@ -11,7 +11,7 @@ private:
 public:
     fs::FS &card = SD;
     void init();
-    void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
+    String listDir(fs::FS &fs, const char *dirname, uint8_t levels);
     void createDir(fs::FS &fs, const char *path);
     void removeDir(fs::FS &fs, const char *path);
     void readFile(fs::FS &fs, const char *path);

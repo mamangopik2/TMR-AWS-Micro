@@ -18,7 +18,16 @@
 			"sstream": "cpp",
 			"*.tcc": "cpp",
 			"optional": "cpp",
-			"new": "cpp"
+			"new": "cpp",
+			"memory": "cpp",
+			"istream": "cpp",
+			"functional": "cpp",
+			"tuple": "cpp",
+			"utility": "cpp",
+			"algorithm": "cpp",
+			"ostream": "cpp",
+			"system_error": "cpp",
+			"type_traits": "cpp"
 		}
 	}
 }

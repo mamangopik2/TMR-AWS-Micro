@@ -24,6 +24,10 @@
 #include <ArduinoJson.h>
 #include <Update.h>
 #include <ESPmDNS.h>
+#include <SDStorage.h>
+#include <ESP32Ping.h>
+
+// #include <CSVLogger.h>
 
 class wifiManager
 {
@@ -32,10 +36,15 @@ private:
     bool scanReq = false;
     bool APState = true;
     bool staticIPState = true;
+    static void routine(void *parameter);
 
 public:
     WebServer *server;
+    SDStorage *microSD;
     wifiManager();
+
+    String *deviceInfo;
+    String *logFilelist;
 
     void begin();
     String _AP_SSID, _AP_PWD, _SSID, _PASSWORD, _SUBNET, _GATEWAY, _STATIC_IP, _SERVER_PORT, _SERVER_IP, _BUFFER_SIZE, _CON_MODE;
@@ -85,8 +94,16 @@ public:
     bool getStaticIpState();
     void setStaticIpState(bool state);
     void writeStaticIpState(bool state);
+    void getLogFileList();
+    void handleReadDeviceInfo();
+    void handleLogFileDownload();
+    void handleGetPassword();
 
     unsigned long getBeaconTime();
+
+    void startThread(uint32_t stackSize = 4096,
+                     UBaseType_t priority = 1,
+                     BaseType_t core = 1);
 };
 
 #endif // _wifi_manager_h

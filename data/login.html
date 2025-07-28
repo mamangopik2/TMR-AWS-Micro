@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dropdown" style="position: absolute; top: 0; left: 2%;">
+        <button class="dropdown-button">&#9776;</button>
+        <div class="dropdown-content" id="dropdown-buttons">
+        </div>
+    </div>
+    <script src="header-button.js"></script>
+    <div class="container">
+        <h2>Login</h2>
+        <img src="logo.png" alt="TMR logo">
+
+        <label for="password">WiFi AP Password</label>
+        <input type="password" name="ap_password" id="ap_password" />
+        <label>
+            <input type="checkbox" id="togglePassword" /> Show Password
+        </label>
+
+        <button id="button_save">SAVE</button>
+    </div>
+</body>
+<script src="beacon.js"></script>
+<script>
+    var base_url = window.location.origin;
+    document.getElementById("togglePassword").addEventListener("change", function () {
+        const passwordInput = document.getElementById("ap_password");
+        passwordInput.type = this.checked ? "text" : "password";
+    });
+    document.getElementById("button_network").onclick = () => {
+        window.location = base_url + '/net-form.html';
+    }
+
+    document.getElementById("button_interfaces").onclick = () => {
+        window.location = base_url + '/interfaces.html';
+    }
+    document.getElementById("button_sensors").onclick = () => {
+        window.location = base_url + '/sensors.html';
+    }
+    document.getElementById("button_site_setup").onclick = () => {
+        window.location = base_url + '/site_setup.html';
+    }
+    document.getElementById("button_time_setup").onclick = () => {
+        window.location = base_url + '/time_setup.html';
+    }
+    document.getElementById("button_cloud_setup").onclick = () => {
+        window.location = base_url + '/cloud_setup.html';
+    }
+    document.getElementById("button_OTA").onclick = () => {
+        window.location = base_url + '/OTA.html';
+    }
+    document.getElementById("button_configured_sensor").onclick = () => {
+        window.location = base_url + '/data_viewer.html';
+    }
+    document.getElementById("button_save").onclick = () => {
+        let ap_password = document.getElementById("ap_password").value;
+
+        let urlScan = base_url + '/get-password';
+        fetch(urlScan)
+            .then(res => res.json())
+            .then((out) => {
+                if (out.password == ap_password) {
+                    setCookie("login", "true", 365);
+                    window.location = window.location = base_url + '/data_viewer.html';
+                } else {
+                    alert("incorrect password!");
+                }
+            }).catch(err => console.log(err));
+
+    }
+</script>
+
+</html>s

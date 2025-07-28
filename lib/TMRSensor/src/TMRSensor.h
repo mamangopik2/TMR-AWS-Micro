@@ -6,6 +6,7 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <wifiManager.h>
 #include <Wire.h>
 #include <Adafruit_ADS1X15.h>
@@ -89,6 +90,8 @@ public:
     bool setToken(const char *token);
     String getToken();
 
+    uint8_t fail_counter = 0;
+
     bool begin(const char *token);
     bool publish(String tagName, String data);
     bool publishBulk(String data, String Timestamp);
@@ -111,6 +114,9 @@ public:
     String _siteInfo;
     String _timeSetup;
     String _cloudSetup;
+    String _siteName;
+    String _plantName;
+    String _deviceName;
     String NTPServer, timezone, timeSource;
     void loadSiteInfo();
     void loadTimeInfo();

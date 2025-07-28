@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MQTT CSV Stream</title>
+    <label for="filename">Filename</label>
+    <input type="text" id="filename">
+    <button id="btn-request">Request!</button>
+    <div id="fileListWraper">
+    </div>
+    <script src="https://unpkg.com/mqtt@4.2.8/dist/mqtt.min.js"></script>
+</head>
+
+<body>
+    <h2>MQTT CSV Stream</h2>
+    <pre id="output">Waiting for messages...</pre>
+
+    <script>
+        const brokerUrl = "wss://broker.hivemq.com:8884/mqtt";
+        const topics = ["TMR-123/TMRAWS/data/log/list", "TMR-123/TMRAWS/data/log/streamCSV"];
+
+        // Create a client instance
+        const clientID = "webClient_" + Math.floor(Math.random() * 10000);
+        const options = {
+            clientId: clientID,
+            clean: true,
+            connectTimeout: 4000,
+            reconnectPeriod: 4000,
+        };
+
+        const client = mqtt.connect(brokerUrl, options);
+
+        // On connection success
+        client.on('connect', function () {
+            console.log("Connected to broker");
+            document.getElementById("output").textContent += "\nConnected to broker";
+            topics.forEach(topic => {
+                client.subscribe(topic, function (err) {
+                    if (!err) {
+                        console.log("Subscribed to topic:", topic);
+                        document.getElementById("output").textContent += "\nSubscribed to topic: " + topic;
+                    } else {
+                        console.error("Subscription error:", err);
+                        document.getElementById("output").textContent += "\nSubscription error: " + err.message;
+                    }
+                });
+            });
+        });
+
+        var buffer_csv = [];
+
+        function reassembleBuffer() {
+            // document.getElementById("output").textContent +=
+            console.log(buffer_csv);
+            document.getElementById("output").textContent = "";
+            buffer_csv.forEach(batch => {
+                let csv_data = batch.data
+                console.log(csv_data);
+                csv_data.split("\n").forEach(element => {
+                    if (element.length > 1 && element != "EOF") {
+                        document.getElementById("output").textContent += element + "\n"
+                    }
+                });
+            });
+            buffer_csv = []
+        }
+        // On message received
+        let oldFileList = "";
+        client.on('message', function (topic, message) {
+            document.getElementById("output").textContent += `\n[${topic}]`;
+
+            switch (topic) {
+                case "TMR-123/TMRAWS/data/log/streamCSV":
+                    console.log("data batch");
+                    buffer_csv.push(JSON.parse(message.toString()))
+                    if (JSON.parse(message.toString()).data == "EOF") {
+                        document.getElementById("output").textContent += "\n";
+                        reassembleBuffer();
+                    }
+                    break;
+                case "TMR-123/TMRAWS/data/log/list":
+                    console.log("file listing");
+                    let buffer = "";
+                    let filenameDataList = JSON.parse(message.toString()).filename;
+                    console.log(filenameDataList);
+                    filenameDataList.forEach((fileName, index) => {
+                        buffer += `<p id="file-${index}">${fileName}</p>`;
+                    });
+                    if (oldFileList.length != buffer.length) {
+                        document.getElementById("fileListWraper").innerHTML = buffer;
+                        filenameDataList.forEach((fileName, index) => {
+                            console.log(`file-${index}`);
+                            document.getElementById(`file-${index}`).onclick = () => {
+                                console.log("requesting:", document.getElementById(`file-${index}`).textContent);
+                                client.publish("TMR-123/TMRAWS/device/logger/get", "/" + document.getElementById(`file-${index}`).textContent);
+                            }
+                        });
+                        oldFileList = buffer;
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        });
+
+        // On connection lost
+        client.on('error', function (error) {
+            console.error("Connection error:", error);
+            document.getElementById("output").textContent += "\nConnection error: " + error.message;
+        });
+
+        client.on('close', function () {
+            console.warn("Connection closed");
+            document.getElementById("output").textContent += "\nConnection closed";
+        });
+        document.getElementById("btn-request").onclick = () => {
+            client.publish("TMR-123/TMRAWS/device/logger/get", document.getElementById("filename").value);
+        }
+    </script>
+</body>
+
+</html>

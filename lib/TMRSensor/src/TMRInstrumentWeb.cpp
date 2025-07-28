@@ -67,32 +67,131 @@ bool TMRInstrumentWeb::publish(String tagName, String data)
     }
 }
 
+// bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
+// {
+//     if (WiFi.status() != WL_CONNECTED)
+//         return false;
+
+//     HTTPClient http;
+//     String url = _host + "/nitag/v2/update-current-values";
+//     http.begin(url);
+//     http.addHeader("accept", "application/json");
+//     http.addHeader("x-ni-api-key", _token);
+//     http.addHeader("Content-Type", "application/json");
+
+//     DynamicJsonDocument inputDoc(8192);
+//     DeserializationError err = deserializeJson(inputDoc, data);
+//     if (err)
+//     {
+//         Serial.print("JSON parse error: ");
+//         Serial.println(err.c_str());
+//         http.end();
+//         http.~HTTPClient();
+//         return false;
+//     }
+
+//     JsonArray sensors = inputDoc["sensors"];
+//     if (!sensors)
+//     {
+//         http.end();
+//         http.~HTTPClient();
+//         return false;
+//     }
+
+//     DynamicJsonDocument outputDoc(8192); // final payload
+//     JsonArray root = outputDoc.to<JsonArray>();
+//     String workspaceId = getWorkspace();
+
+//     for (JsonObject sensor : sensors)
+//     {
+//         const char *tag = sensor["tag_name"];
+//         float scaledValue = sensor["value"]["scaled"];
+
+//         Serial.print("Tag:");
+//         Serial.print(tag);
+//         Serial.print(" Value:");
+//         Serial.println(scaledValue);
+//         Serial.print("At:");
+//         Serial.println(Timestamp);
+
+//         JsonObject entry = root.createNestedObject();
+//         entry["path"] = tag;
+//         entry["workspace"] = workspaceId;
+//         entry["timestamp"] = Timestamp;
+
+//         JsonArray updates = entry.createNestedArray("updates");
+//         JsonObject update = updates.createNestedObject();
+//         JsonObject value = update.createNestedObject("value");
+//         value["type"] = "DOUBLE";
+//         value["value"] = scaledValue;
+//     }
+
+//     String payload;
+//     serializeJson(outputDoc, payload);
+
+//     int httpResponseCode = http.POST(payload);
+//     Serial.print("HTTP Response code: ");
+//     Serial.println(httpResponseCode);
+
+//     if (httpResponseCode > 0)
+//     {
+//         String response = http.getString();
+//         Serial.println(response);
+//         http.end();
+//         fail_counter = 0;
+//         http.~HTTPClient();
+//         return true;
+//     }
+//     else
+//     {
+//         Serial.println("Error on sending POST");
+//         http.end();
+//         fail_counter++;
+//         http.~HTTPClient();
+//         return false;
+//     }
+// }
+
 bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
 {
     if (WiFi.status() != WL_CONNECTED)
         return false;
 
+    WiFiClientSecure client;
+    client.setInsecure();
+    // client.setBufferSizes(512, 512);
+
     HTTPClient http;
     String url = _host + "/nitag/v2/update-current-values";
-    http.begin(url);
+
+    if (!http.begin(client, url))
+    {
+        Serial.println("Failed to begin HTTPS connection");
+        return false;
+    }
+
     http.addHeader("accept", "application/json");
     http.addHeader("x-ni-api-key", _token);
     http.addHeader("Content-Type", "application/json");
 
-    DynamicJsonDocument inputDoc(2048);
+    DynamicJsonDocument inputDoc(8192);
     DeserializationError err = deserializeJson(inputDoc, data);
     if (err)
     {
         Serial.print("JSON parse error: ");
         Serial.println(err.c_str());
+        http.end();
         return false;
     }
 
     JsonArray sensors = inputDoc["sensors"];
     if (!sensors)
+    {
+        http.end();
         return false;
+    }
 
-    DynamicJsonDocument outputDoc(4096); // final payload
+    DynamicJsonDocument outputDoc(8192);
     JsonArray root = outputDoc.to<JsonArray>();
     String workspaceId = getWorkspace();
 
@@ -101,17 +200,18 @@ bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
         const char *tag = sensor["tag_name"];
         float scaledValue = sensor["value"]["scaled"];
 
-        Serial.print("Tag:");
+        Serial.print("Tag: ");
         Serial.print(tag);
-        Serial.print(" Value:");
+        Serial.print(" Value: ");
         Serial.println(scaledValue);
-        Serial.print("At:");
+        Serial.print("At: ");
         Serial.println(Timestamp);
 
         JsonObject entry = root.createNestedObject();
         entry["path"] = tag;
         entry["workspace"] = workspaceId;
         entry["timestamp"] = Timestamp;
+        entry["retention"] = "PERMANENT";
 
         JsonArray updates = entry.createNestedArray("updates");
         JsonObject update = updates.createNestedObject();
@@ -132,12 +232,14 @@ bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
         String response = http.getString();
         Serial.println(response);
         http.end();
+        fail_counter = 0;
         return true;
     }
     else
     {
         Serial.println("Error on sending POST");
         http.end();
+        fail_counter++;
         return false;
     }
 }

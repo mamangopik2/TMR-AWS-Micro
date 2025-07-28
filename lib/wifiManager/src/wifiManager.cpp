@@ -12,7 +12,10 @@ void wifiManager::begin(/* args */)
     WiFi.mode(WIFI_AP_STA);
     if (!SPIFFS.begin(true))
     {
+
+#if defined serDebug
         Serial.println("An Error has occurred while mounting SPIFFS");
+#endif
         return;
     }
     else
@@ -26,16 +29,20 @@ void wifiManager::begin(/* args */)
         if (buf.length() >= 8)
             _AP_PWD = buf;
         else
+#if defined serDebug
             Serial.println("Failed reading configured AP_PWD");
+#endif
         file.close();
     }
     String macAddress = String(WiFi.macAddress());
     macAddress.replace(':', '-');
+#if defined serDebug
     Serial.println("creating AP");
     Serial.print("SSID:");
     Serial.println(_AP_SSID);
     Serial.print("PWD:");
     Serial.println(_AP_PWD);
+#endif
     WiFi.softAP(_AP_SSID + macAddress.substring(macAddress.length() - 5), _AP_PWD);
 
     this->compile();
@@ -46,10 +53,11 @@ void wifiManager::begin(/* args */)
     int n = WiFi.scanNetworks();
     for (int i = 0; i < n - 1; i++)
     {
-        // Serial.println(WiFi.SSID(i));
+
+        Serial.println(WiFi.SSID(i));
         scannedSSID += DQUOTE + String(WiFi.SSID(i)) + DQUOTE + NL;
     }
-    // Serial.println(WiFi.SSID(n - 1));
+    Serial.println(WiFi.SSID(n - 1));
     scannedSSID += DQUOTE + String(WiFi.SSID(n - 1)) + DQUOTE;
     Serial.println("======Available SSID=======");
     Serial.println(scannedSSID);
@@ -159,17 +167,19 @@ void wifiManager::handleScanWifi()
     server->sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     server->sendHeader("Access-Control-Allow-Headers", "Content-Type");
     scanReq = true;
-    // scannedSSID = "";
-    // WiFi.disconnect(true);
-    // int n = WiFi.scanNetworks();
-    // for (int i = 0; i < n - 1; i++)
-    // {
-    //     // Serial.println(WiFi.SSID(i));
-    //     scannedSSID += DQUOTE + String(WiFi.SSID(i)) + DQUOTE + NL;
-    // }F
-    // // Serial.println(WiFi.SSID(n - 1));
-    // scannedSSID += DQUOTE + String(WiFi.SSID(n - 1)) + DQUOTE;
-    // Serial.println(scannedSSID);
+// scannedSSID = "";
+// WiFi.disconnect(true);
+// int n = WiFi.scanNetworks();
+// for (int i = 0; i < n - 1; i++)
+// {
+//     Serial.println(WiFi.SSID(i));
+//     scannedSSID += DQUOTE + String(WiFi.SSID(i)) + DQUOTE + NL;
+// }F
+// Serial.println(WiFi.SSID(n - 1));
+// scannedSSID += DQUOTE + String(WiFi.SSID(n - 1)) + DQUOTE;
+#if defined serDebug
+    Serial.println(scannedSSID);
+#endif
 
     String payload;
     payload += "{\"ssid\":[";
@@ -224,12 +234,14 @@ void wifiManager::handleSensorAdd()
     String jsonStringFromClient = server->arg("plain");
     String newJsonData = fuseSensor(jsonStringFromFile, jsonStringFromClient);
 
+#if defined serDebug
     Serial.print("from file");
     Serial.println(jsonStringFromFile);
     Serial.print("from client");
     Serial.println(jsonStringFromClient);
     Serial.print("fused");
     Serial.println(newJsonData);
+#endif
 
     myJsonFile = SPIFFS.open("/sensor.json", "w", true);
     myJsonFile.print(newJsonData);
@@ -275,7 +287,9 @@ void wifiManager::handleUpdateSensors()
     File myJsonFile = SPIFFS.open("/sensor.json", "w", true);
     myJsonFile.print(jsonStringFromClient);
     myJsonFile.close();
-    // Serial.println(jsonStringFromClient);
+#if defined serDebug
+    Serial.println(jsonStringFromClient);
+#endif
     this->sensorUpdated = true;
 
     server->send(200, "application/json", jsonStringFromClient);
@@ -293,13 +307,22 @@ void wifiManager::handleUpdateSerialCom()
     File myJsonFile = SPIFFS.open("/serial_config.json", "w", true);
     myJsonFile.print(jsonStringFromClient);
     myJsonFile.close();
-    // Serial.println(jsonStringFromClient);
+#if defined serDebug
+    Serial.println(jsonStringFromClient);
+#endif
 
     server->send(200, "application/json", jsonStringFromClient);
     this->serialComUpdated = true;
     jsonStringFromClient = "";
 }
+void wifiManager::getLogFileList()
+{
+    server->sendHeader("Access-Control-Allow-Origin", "*");
+    server->sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server->sendHeader("Access-Control-Allow-Headers", "Content-Type");
 
+    server->send(200, "application/json", *logFilelist);
+}
 void wifiManager::handleStaticIp()
 {
     server->sendHeader("Access-Control-Allow-Origin", "*");
@@ -313,8 +336,10 @@ void wifiManager::handleStaticIp()
     }
 
     String body = server->arg("plain");
+#if defined serDebug
     Serial.println("Received POST data:");
     Serial.println(body);
+#endif
 
     // Parse the JSON
     DynamicJsonDocument doc(512);
@@ -332,9 +357,11 @@ void wifiManager::handleStaticIp()
     String setIP = doc["ip_address"] | defaultSTATICIP;
     String setSubnet = doc["subnet_mask"] | defaultSUBNET;
     String setGateway = doc["gateway"] | defaultGATEWAY;
+#if defined serDebug
     Serial.println(setIP);
     Serial.println(setSubnet);
     Serial.println(setGateway);
+#endif
 
     file = SPIFFS.open("/DEFAULT_GATEWAY.txt", "w", true);
     file.print(setGateway);
@@ -391,8 +418,10 @@ void wifiManager::handleSetWireless()
     }
 
     String body = server->arg("plain");
+#if defined serDebug
     Serial.println("Received POST data:");
     Serial.println(body);
+#endif
 
     // Parse the JSON
     DynamicJsonDocument doc(512);
@@ -413,31 +442,39 @@ void wifiManager::handleSetWireless()
 
     if (ap_password.length() < 6)
     {
+#if defined serDebug
         Serial.print(ap_password);
         Serial.println(" is too short");
         Serial.println("write default value");
+#endif
         ap_password = defaultAPPWD;
     }
 
     if (password.length() < 6)
     {
+#if defined serDebug
         Serial.print(password);
         Serial.println(" is too short");
         Serial.println("write default value");
+#endif
         password = defaultPWD;
     }
     if (ssid.length() < 6)
     {
+#if defined serDebug
         Serial.print(ssid);
         Serial.println(" is too short");
         Serial.println("write default value");
+#endif
         ssid = defaultSSID;
     }
-    // Print to Serial
+// Print to Serial
+#if defined serDebug
     Serial.println("Parsed wireless settings:");
     Serial.println("STA SSID: " + ssid);
     Serial.println("STA Password: " + password);
     Serial.println("AP Password: " + ap_password);
+#endif
 
     file = SPIFFS.open("/AP_PWD.txt", "w", true);
     file.print(ap_password);
@@ -466,7 +503,9 @@ void wifiManager::handleCloudUpdate()
     File myJsonFile = SPIFFS.open("/cloud_config.json", "w", true);
     myJsonFile.print(jsonStringFromClient);
     myJsonFile.close();
-    // Serial.println(jsonStringFromClient);
+#if defined serDebug
+    Serial.println(jsonStringFromClient);
+#endif
 
     server->send(200, "application/json", jsonStringFromClient);
     this->cloudUpdated = true;
@@ -482,12 +521,25 @@ void wifiManager::handleSiteUpdate()
     File myJsonFile = SPIFFS.open("/site_config.json", "w", true);
     myJsonFile.print(jsonStringFromClient);
     myJsonFile.close();
-    // Serial.println(jsonStringFromClient);
+#if defined serDebug
+    Serial.println(jsonStringFromClient);
+#endif
 
     server->send(200, "application/json", jsonStringFromClient);
     this->siteUpdated = true;
     jsonStringFromClient = "";
 }
+
+void wifiManager::handleReadDeviceInfo()
+{
+    server->sendHeader("Access-Control-Allow-Origin", "*");
+    server->sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server->sendHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    server->send(200, "application/json", *deviceInfo);
+    this->siteUpdated = true;
+}
+
 void wifiManager::handleTimeUpdate()
 {
     server->sendHeader("Access-Control-Allow-Origin", "*");
@@ -498,7 +550,9 @@ void wifiManager::handleTimeUpdate()
     File myJsonFile = SPIFFS.open("/time_config.json", "w", true);
     myJsonFile.print(jsonStringFromClient);
     myJsonFile.close();
-    // Serial.println(jsonStringFromClient);
+#if defined serDebug
+    Serial.println(jsonStringFromClient);
+#endif
 
     server->send(200, "application/json", jsonStringFromClient);
     this->timeUpdated = true;
@@ -523,6 +577,24 @@ void wifiManager::handleRTCSet()
     server->send(200, "application/json", "{\"STATUS\":\"OK\"}");
     RTCUpdated = true;
 }
+void wifiManager::handleLogFileDownload()
+{
+    server->sendHeader("Access-Control-Allow-Origin", "*");
+    server->sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server->sendHeader("Access-Control-Allow-Headers", "Content-Type");
+    RTCJson = server->arg("plain");
+    server->send(200, "application/json", "{\"STATUS\":\"OK\"}");
+    RTCUpdated = true;
+}
+
+void wifiManager::handleGetPassword()
+{
+    server->sendHeader("Access-Control-Allow-Origin", "*");
+    server->sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server->sendHeader("Access-Control-Allow-Headers", "Content-Type");
+    RTCJson = server->arg("plain");
+    server->send(200, "application/json", ("{\"password\":\"" + _AP_PWD + "\"}"));
+}
 
 unsigned long wifiManager::getBeaconTime()
 {
@@ -531,7 +603,9 @@ unsigned long wifiManager::getBeaconTime()
 
 void wifiManager::compile()
 {
+#if defined serDebug
     Serial.println("Webserver begin");
+#endif
     server->begin();
     // server->serveStatic("/", SPIFFS, "/"); // allow downloading files directly
     server->on("/", [this]()
@@ -574,18 +648,38 @@ void wifiManager::compile()
                { handleBeacon(); });
     server->on("/rtc-calibration", [this]()
                { handleRTCSet(); });
+    server->on("/logger-list", [this]()
+               { getLogFileList(); });
+    server->on("/read-device-info", [this]()
+               { handleReadDeviceInfo(); });
+    server->on("/load-logging-file", [this]()
+               { handleLogFileDownload(); });
+    server->on("/get-password", [this]()
+               { handleGetPassword(); });
 
     server->onNotFound([this]()
                        {
-    String path = server->uri();
-    if (SPIFFS.exists(path)) {
-        File file = SPIFFS.open(path, "r");
+        String path = server->uri();
         String contentType = getContentType(path);
-        server->streamFile(file, contentType);
-        file.close();
-    } else {
-        server->send(404, "text/plain", "File Not Found");
-    } });
+    
+        // First check in SPIFFS
+        if (SPIFFS.exists(path)) {
+            File file = SPIFFS.open(path, "r");
+            server->streamFile(file, contentType);
+            file.close();
+            return;
+        }
+    
+        // Then check in SD
+        if (SD.exists(path)) {
+            File file = SD.open(path, "r");
+            server->streamFile(file, contentType);
+            file.close();
+            return;
+        }
+    
+        // Not found in either
+        server->send(404, "text/plain", "File Not Found"); });
 
     server->on("/update", HTTP_POST, [this]()
                {
@@ -643,8 +737,10 @@ void wifiManager::run()
         {
             Serial.print("connecting to: ");
             Serial.println(_SSID);
+#if defined serDebug
             Serial.println("reconnecting WiFi");
             Serial.println(_staticIPMode);
+#endif
             WiFi.disconnect(true);
             WiFi.begin(_SSID, _PASSWORD);
             if (_staticIPMode == true && this->enableDHCP == false)
@@ -658,6 +754,7 @@ void wifiManager::run()
                 {
                     Serial.println("STA Failed to configure");
                 }
+#if defined serDebug
                 Serial.println("set static IP");
                 Serial.print("IP:");
                 Serial.println(IP);
@@ -665,6 +762,7 @@ void wifiManager::run()
                 Serial.println(SN);
                 Serial.print("GW:");
                 Serial.println(GW);
+#endif
             }
         }
 
@@ -775,4 +873,63 @@ void wifiManager::writeStaticIpState(bool state)
     else
         file.print("false");
     file.close();
+}
+
+void wifiManager::startThread(uint32_t stackSize, UBaseType_t priority, BaseType_t core)
+{
+    TaskHandle_t taskHandle;
+    xTaskCreatePinnedToCore(
+        wifiManager::routine, // Function
+        "MyTask",             // Name
+        stackSize,            // Stack size in words (not bytes)
+        this,                 // Task input parameter
+        priority,             // Task priority
+        &taskHandle,          // Task handle
+        core                  // Core ID
+    );
+}
+
+void wifiManager::routine(void *parameter)
+{
+    unsigned long timer_wifi_reconnect = millis();
+    wifiManager *networkManager = static_cast<wifiManager *>(parameter);
+    networkManager->begin();
+    networkManager->wifiTimeout = 5000;
+    networkManager->enableDHCP = true;          // default value is false
+    networkManager->automaticAPDisable = false; // default is true, after connected to WiFi the AP is disabled
+    while (1)
+    {
+        try
+        {
+            // check internet connection every 10 after user left configurataion page
+            if (millis() - networkManager->getBeaconTime() > (1 * 60 * 1000))
+            {
+                if (millis() - timer_wifi_reconnect > 10000)
+                {
+                    if (Ping.ping("8.8.8.8"))
+                    {
+#if defined serDebug
+                        Serial.println("Ping successful");
+#endif
+                    }
+                    else
+                    {
+#if defined serDebug
+                        Serial.println("Ping failed");
+#endif
+                        WiFi.reconnect();
+                    }
+                    timer_wifi_reconnect = millis();
+                }
+            }
+
+            networkManager->run();
+        }
+        catch (const std::exception &e)
+        {
+            Serial.println(e.what());
+        }
+
+        vTaskDelay(1);
+    }
 }
