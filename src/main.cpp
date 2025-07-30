@@ -1,4 +1,7 @@
 #define USE_SD_LOG 1
+
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 #include <Arduino.h>
 #include <TMRSensor.h>
 #include <WiFi.h>
@@ -64,21 +67,23 @@ String getDeviceInfo()
   info["plant"] = sensorConfigurator._plantName;
   info["device_name"] = sensorConfigurator._deviceName;
   info["device_time"] = sensorConfigurator.getISOTimeRTC();
+  info["free_heap"] = ESP.getFreeHeap() / 1024.0;
   info["local_IP"] = WiFi.localIP();
 
   String jsonString;
   serializeJson(info, jsonString);
+  info.clear();
   return jsonString;
 }
 
 void setup()
 {
-  setCpuFrequencyMhz(240);
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
+  setCpuFrequencyMhz(80);
   esp_task_wdt_init(0xffffffff, true);
   Serial.setRxBufferSize(4096);
   Serial.begin(115200); // host serial
   systemSerial.hostSerial = &Serial;
-  systemSerial.startThread(8192, 1, 1);
 
   xTaskCreatePinnedToCore(clock, "time scheduler", 1024, NULL, 6, &timeTask, 1);
 
@@ -100,7 +105,7 @@ void setup()
   remote.setNetManager(&networkManager);
   remote.configurationManager = &sensorConfigurator;
   remote.handledSensorMessage = &sensorDataPacket;
-  remote.startThread(24576, 4, 1);
+  remote.startThread((16 * 1024), 4, 1);
 
   logger.init();
   logger.configurationManager = &sensorConfigurator;
@@ -116,7 +121,43 @@ void setup()
   sensorConfigurator.checkTimeUpdate(&initTime);
   instrumentManager.initAnalog(GAIN_TWOTHIRDS);
   cloud.reqWorkSpace();
+
+  cloud.sensorConfiguration = &sensorConfigurator._jsonString;
   // networkManager.csvLogger = &logger; // pass the logger refference to the net manager to give csv files access
+
+  Wire.begin();
+  byte error, address;
+  int nDevices = 0;
+
+  Serial.println("Scanning...");
+
+  for (address = 1; address < 127; address++)
+  {
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+
+    if (error == 0)
+    {
+      Serial.print("I2C device found at address 0x");
+      if (address < 16)
+        Serial.print("0");
+      Serial.print(address, HEX);
+      Serial.println(" !");
+      nDevices++;
+    }
+    else if (error == 4)
+    {
+      Serial.print("Unknown error at address 0x");
+      if (address < 16)
+        Serial.print("0");
+      Serial.println(address, HEX);
+    }
+  }
+
+  if (nDevices == 0)
+    Serial.println("No I2C devices found\n");
+  else
+    Serial.println("Done.\n");
 }
 
 void loop() // this loop runs on Core1 by default
@@ -143,12 +184,18 @@ unlicensed:
   Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
   Serial.println(" KB");
 
-  if (remote.fail_counter > 20 || cloud.fail_counter > 10)
+  if ((freeHeap / 1024) <= 100)
   {
+    Serial.println("Not Enough Free Heap");
     ESP.restart();
   }
 
-  vTaskDelay(5000 / portTICK_PERIOD_MS); // delay
+  // if (remote.fail_counter > 20 || cloud.fail_counter > 10)
+  // {
+  //   ESP.restart();
+  // }
+
+  vTaskDelay(3000 / portTICK_PERIOD_MS); // delay
 
   if (!licensing.checkLicense())
   {
@@ -163,7 +210,7 @@ unlicensed:
                            &cloud,
                            &runUpTimeMinute,
                            &minuteCounter, &readyToLog);
-    fileLists = logger.microSD->listDir(logger.microSD->card, "/", 1);
+    fileLists = logger.microSD->listDir(SD_MMC, "/", 1);
     deviceInfo = getDeviceInfo();
   }
   catch (const std::exception &e)

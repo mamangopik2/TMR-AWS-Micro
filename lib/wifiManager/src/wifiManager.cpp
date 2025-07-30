@@ -377,6 +377,7 @@ void wifiManager::handleStaticIp()
 
     // Respond to client
     server->send(200, "application/json", "{\"status\":\"ok\"}");
+    doc.clear();
     ESP.restart();
 }
 
@@ -490,6 +491,7 @@ void wifiManager::handleSetWireless()
 
     // Respond to client
     server->send(200, "application/json", "{\"status\":\"ok\"}");
+    doc.clear();
     ESP.restart();
 }
 
@@ -669,14 +671,24 @@ void wifiManager::compile()
             file.close();
             return;
         }
-    
-        // Then check in SD
+
+// Then check in SD
+#ifdef SDSPI
         if (SD.exists(path)) {
             File file = SD.open(path, "r");
             server->streamFile(file, contentType);
             file.close();
             return;
         }
+#endif
+#ifdef SDMMC
+        if (SD_MMC.exists(path)) {
+            File file = SD_MMC.open(path, "r");
+            server->streamFile(file, contentType);
+            file.close();
+            return;
+        }
+#endif
     
         // Not found in either
         server->send(404, "text/plain", "File Not Found"); });

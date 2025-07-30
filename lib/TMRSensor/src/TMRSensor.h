@@ -15,8 +15,8 @@
 #include <SDStorage.h>
 #endif
 
-#define RXD2 27
-#define TXD2 26
+#define RXD2 16
+#define TXD2 17
 
 #define HREG 0
 #define IREG 1
@@ -82,6 +82,7 @@ public:
     String _host = "",
            _token = "", _username = "", _password = "", _workspace = "";
     uint16_t _port;
+    String *sensorConfiguration;
 
     bool setHost(const char *host);
     String getHost();
@@ -93,11 +94,13 @@ public:
     uint8_t fail_counter = 0;
 
     bool begin(const char *token);
-    bool publish(String tagName, String data);
+    bool publishConfig(String tagName, String data);
     bool publishBulk(String data, String Timestamp);
     String getWorkspace();
     void setWorkspace(String id);
     bool reqWorkSpace();
+    String createQuotedText(String text);
+    bool parseAndBuildJSON(const String &data, String Timestamp, String &outputPayload);
 };
 
 class configReader

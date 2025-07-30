@@ -6,12 +6,13 @@ bool TMRInstrumentWeb::begin(const char *token)
     return 1;
 }
 
-bool TMRInstrumentWeb::publish(String tagName, String data)
+bool TMRInstrumentWeb::publishConfig(String tagName, String data)
 {
     if (WiFi.status() == WL_CONNECTED)
     {
         HTTPClient http;
         String url = _host + "/nitag/v2/update-current-values";
+        String config = *sensorConfiguration;
         Serial.println(url);
         http.begin(url);
         http.addHeader("accept", "application/json");
@@ -26,7 +27,8 @@ bool TMRInstrumentWeb::publish(String tagName, String data)
         // Create entry object inside the array
         JsonObject entry = root.createNestedObject();
         entry["path"] = tagName;
-        entry["workspace"] = getWorkspace();
+        entry["workspace"] = "Trial";
+        entry["properties"] = "{\"sensor_conf\":" + config + "}";
 
         // "updates" is an array of objects
         JsonArray updates = entry.createNestedArray("updates");
@@ -46,7 +48,12 @@ bool TMRInstrumentWeb::publish(String tagName, String data)
         int httpResponseCode = http.POST(jsonString);
         Serial.print("HTTP Response code: ");
         Serial.println(httpResponseCode);
-
+        doc.clear();
+        // root.clear();
+        // entry.clear();
+        // updates.clear();
+        // update.clear();
+        // value.clear();
         if (httpResponseCode > 0)
         {
             String response = http.getString();
@@ -152,6 +159,85 @@ bool TMRInstrumentWeb::publish(String tagName, String data)
 //     }
 // }
 
+bool TMRInstrumentWeb::parseAndBuildJSON(const String &data, String Timestamp, String &outputPayload)
+{
+    if (data.indexOf("\"sensors\"") == -1)
+    {
+        Serial.println("No 'sensors' array found.");
+        return false;
+    }
+
+    String workspaceId = getWorkspace();
+    outputPayload = "[";
+    int sensorIndex = 0;
+
+    int sensorsStart = data.indexOf('[');
+    int sensorsEnd = data.lastIndexOf(']');
+    if (sensorsStart == -1 || sensorsEnd == -1)
+        return false;
+
+    String sensorsData = data.substring(sensorsStart + 1, sensorsEnd);
+    sensorsData.replace("},{", "}|{"); // temporary delimiter for split
+
+    while (sensorsData.length() > 0)
+    {
+        int sepIndex = sensorsData.indexOf("|");
+        String sensorEntry;
+
+        if (sepIndex != -1)
+        {
+            sensorEntry = sensorsData.substring(0, sepIndex + 1);
+            sensorsData = sensorsData.substring(sepIndex + 2);
+        }
+        else
+        {
+            sensorEntry = sensorsData;
+            sensorsData = "";
+        }
+
+        // Extract tag_name
+        int tagStart = sensorEntry.indexOf("\"tag_name\"");
+        if (tagStart == -1)
+            continue;
+        int tagValueStart = sensorEntry.indexOf("\"", tagStart + 11) + 1;
+        int tagValueEnd = sensorEntry.indexOf("\"", tagValueStart);
+        String tag = sensorEntry.substring(tagValueStart, tagValueEnd);
+
+        // Extract scaled value
+        int scaledStart = sensorEntry.indexOf("\"scaled\"");
+        if (scaledStart == -1)
+            continue;
+        int colonIndex = sensorEntry.indexOf(":", scaledStart);
+        int commaOrEnd = sensorEntry.indexOf(",", colonIndex + 1);
+        if (commaOrEnd == -1)
+            commaOrEnd = sensorEntry.indexOf("}", colonIndex + 1);
+        String valueStr = sensorEntry.substring(colonIndex + 1, commaOrEnd);
+        valueStr.trim();
+
+        Serial.print("Tag: ");
+        Serial.print(tag);
+        Serial.print(" Value: ");
+        Serial.println(valueStr);
+        Serial.print("At: ");
+        Serial.println(Timestamp);
+
+        // Append to output JSON
+        if (sensorIndex++ > 0)
+            outputPayload += ",";
+
+        outputPayload += "{";
+        outputPayload += "\"path\":\"" + tag + "\",";
+        outputPayload += "\"workspace\":\"" + workspaceId + "\",";
+        outputPayload += "\"timestamp\":\"" + Timestamp + "\",";
+        outputPayload += "\"retention\":\"PERMANENT\",";
+        outputPayload += "\"updates\":[{\"value\":{\"type\":\"DOUBLE\",\"value\":" + valueStr + "}}]";
+        outputPayload += "}";
+    }
+
+    outputPayload += "]";
+    return true;
+}
+
 bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
 {
     if (WiFi.status() != WL_CONNECTED)
@@ -174,6 +260,8 @@ bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
     http.addHeader("x-ni-api-key", _token);
     http.addHeader("Content-Type", "application/json");
 
+    String payload;
+    // parseAndBuildJSON(data, Timestamp, payload);
     DynamicJsonDocument inputDoc(8192);
     DeserializationError err = deserializeJson(inputDoc, data);
     if (err)
@@ -220,12 +308,17 @@ bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
         value["value"] = scaledValue;
     }
 
-    String payload;
     serializeJson(outputDoc, payload);
 
     int httpResponseCode = http.POST(payload);
     Serial.print("HTTP Response code: ");
     Serial.println(httpResponseCode);
+
+    inputDoc.clear();
+    outputDoc.clear();
+    // root.clear();
+    // sensors.clear();
+    payload = "";
 
     if (httpResponseCode > 0)
     {
@@ -305,6 +398,8 @@ bool TMRInstrumentWeb::reqWorkSpace()
                     break;
                 }
             }
+            myJson.clear();
+            // workspaces.clear();
             return 1;
         }
         else
@@ -319,6 +414,11 @@ bool TMRInstrumentWeb::reqWorkSpace()
     {
         return 0;
     }
+}
+
+String TMRInstrumentWeb::createQuotedText(String text)
+{
+    return '"' + text + '"';
 }
 
 bool TMRInstrumentWeb::setHost(const char *host)

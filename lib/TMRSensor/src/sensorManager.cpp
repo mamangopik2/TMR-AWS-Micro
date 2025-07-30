@@ -249,7 +249,7 @@ void sensorManager::initAnalog(adsGain_t gain)
 }
 void sensorManager::initAnalog(uint8_t address, adsGain_t gain)
 {
-    Wire.begin(23, 22);
+    Wire.begin(21, 22);
     _ADCInterface = new Adafruit_ADS1015;
     _ADCInterface->setGain(gain);
     _ADCInterface->begin();

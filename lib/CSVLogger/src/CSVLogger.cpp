@@ -41,11 +41,15 @@ bool CSVLogger::logJsonArray(String filename, String timestampISO, String data)
         if (!microSD->fileExists(filename))
         {
             microSD->writeFile(microSD->card, filename.c_str(), buffer_logger.c_str());
+            doc.clear();
+            // sensors.clear();
             return 1;
         }
         else
         {
             microSD->appendFile(microSD->card, filename.c_str(), buffer_logger.c_str());
+            doc.clear();
+            // sensors.clear();
             return 1;
         }
     }

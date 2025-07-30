@@ -1,5 +1,255 @@
 #include <SDStorage.h>
 
+#ifdef SDMMC
+
+void SDStorage::init()
+{
+    if (!SD_MMC.begin())
+    {
+        Serial.println("Card Mount Failed");
+        return;
+    }
+
+    uint8_t cardType = SD_MMC.cardType();
+
+    if (cardType == CARD_NONE)
+    {
+        Serial.println("No SD card attached");
+        return;
+    }
+
+    Serial.print("SD Card Type: ");
+    if (cardType == CARD_MMC)
+    {
+        Serial.println("MMC");
+    }
+    else if (cardType == CARD_SD)
+    {
+        Serial.println("SDSC");
+    }
+    else if (cardType == CARD_SDHC)
+    {
+        Serial.println("SDHC");
+    }
+    else
+    {
+        Serial.println("UNKNOWN");
+    }
+
+    uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
+    Serial.printf("SD Card Size: %lluMB\n", cardSize);
+}
+
+String SDStorage::listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+{
+
+    File root = fs.open(dirname);
+    if (!root || !root.isDirectory())
+    {
+        return "{\"filename\":[],\"filesize\":[]}";
+    }
+
+    String fileInfo = "{\"filename\":[";
+    String fileSizes = "\"filesize\":[";
+    uint16_t fileIndex = 0;
+
+    File file = root.openNextFile();
+    while (file)
+    {
+        if (file.isDirectory())
+        {
+            if (levels)
+            {
+                listDir(fs, file.path(), levels - 1);
+            }
+        }
+        else
+        {
+            if (fileIndex > 0)
+            {
+                fileInfo += ",";
+                fileSizes += ",";
+            }
+            fileInfo += "\"";
+            fileInfo += String(file.path());
+            fileInfo += "\"";
+
+            fileSizes += String(file.size());
+            fileIndex++;
+        }
+        file = root.openNextFile();
+    }
+
+    fileInfo += "],";
+    fileSizes += "]}";
+
+    return fileInfo + fileSizes;
+}
+
+void SDStorage::createDir(fs::FS &fs, const char *path)
+{
+    Serial.printf("Creating Dir: %s\n", path);
+    if (fs.mkdir(path))
+    {
+        Serial.println("Dir created");
+    }
+    else
+    {
+        Serial.println("mkdir failed");
+    }
+}
+
+void SDStorage::removeDir(fs::FS &fs, const char *path)
+{
+    Serial.printf("Removing Dir: %s\n", path);
+    if (fs.rmdir(path))
+    {
+        Serial.println("Dir removed");
+    }
+    else
+    {
+        Serial.println("rmdir failed");
+    }
+}
+
+void SDStorage::readFile(fs::FS &fs, const char *path)
+{
+    Serial.printf("Reading file: %s\n", path);
+    File file = fs.open(path);
+    if (!file)
+    {
+        Serial.println("Failed to open file for reading");
+        return;
+    }
+
+    Serial.print("Read from file: ");
+    while (file.available())
+    {
+        Serial.write(file.read());
+    }
+    file.close();
+}
+
+void SDStorage::writeFile(fs::FS &fs, const char *path, const char *message)
+{
+    Serial.printf("Writing file: %s\n", path);
+    File file = fs.open(path, FILE_WRITE);
+    if (!file)
+    {
+        Serial.println("Failed to open file for writing");
+        return;
+    }
+    if (file.print(message))
+    {
+        Serial.println("File written");
+    }
+    else
+    {
+        Serial.println("Write failed");
+    }
+    file.close();
+}
+
+void SDStorage::appendFile(fs::FS &fs, const char *path, const char *message)
+{
+    Serial.printf("Appending to file: %s\n", path);
+    File file = fs.open(path, FILE_APPEND);
+    if (!file)
+    {
+        Serial.println("Failed to open file for appending");
+        return;
+    }
+    if (file.print(message))
+    {
+        Serial.println("Message appended");
+    }
+    else
+    {
+        Serial.println("Append failed");
+    }
+    file.close();
+}
+
+void SDStorage::renameFile(fs::FS &fs, const char *path1, const char *path2)
+{
+    Serial.printf("Renaming file %s to %s\n", path1, path2);
+    if (fs.rename(path1, path2))
+    {
+        Serial.println("File renamed");
+    }
+    else
+    {
+        Serial.println("Rename failed");
+    }
+}
+
+void SDStorage::deleteFile(fs::FS &fs, const char *path)
+{
+    Serial.printf("Deleting file: %s\n", path);
+    if (fs.remove(path))
+    {
+        Serial.println("File deleted");
+    }
+    else
+    {
+        Serial.println("Delete failed");
+    }
+}
+
+void SDStorage::testFileIO(fs::FS &fs, const char *path)
+{
+    File file = fs.open(path);
+    static uint8_t buf[512];
+    size_t len = 0;
+    uint32_t start = millis();
+    uint32_t end = start;
+
+    if (file)
+    {
+        len = file.size();
+        size_t flen = len;
+        start = millis();
+        while (len)
+        {
+            size_t toRead = len;
+            if (toRead > 512)
+                toRead = 512;
+            file.read(buf, toRead);
+            len -= toRead;
+        }
+        end = millis() - start;
+        Serial.printf("%u bytes read for %u ms\n", flen, end);
+        file.close();
+    }
+    else
+    {
+        Serial.println("Failed to open file for reading");
+    }
+
+    file = fs.open(path, FILE_WRITE);
+    if (!file)
+    {
+        Serial.println("Failed to open file for writing");
+        return;
+    }
+
+    start = millis();
+    for (size_t i = 0; i < 2048; i++)
+    {
+        file.write(buf, 512);
+    }
+    end = millis() - start;
+    Serial.printf("%u bytes written for %u ms\n", 2048 * 512, end);
+    file.close();
+}
+
+bool SDStorage::fileExists(String filename)
+{
+    return SD_MMC.exists(filename.c_str());
+}
+
+#endif
+#ifdef SDSPI
 void SDStorage::init()
 {
     if (!SD.begin(5))
@@ -297,3 +547,4 @@ bool SDStorage::fileExists(String filename)
 {
     return (bool)SD.exists(filename.c_str());
 }
+#endif

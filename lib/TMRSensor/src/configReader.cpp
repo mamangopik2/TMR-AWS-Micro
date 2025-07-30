@@ -158,6 +158,8 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         jsonOutput += (sensorsData[i]);
     }
     jsonOutput += "]}";
+    doc.clear();
+    // sensorArray.clear();
     return jsonOutput;
 }
 void configReader::loadFile()
@@ -264,6 +266,7 @@ void configReader::loadSerialConfigFile()
     // Serial.println(_serialBaudrate);
     // Serial.println(_serialMode);
     // Serial.println("====serial conf======");
+    SerialConfDoc.clear();
 }
 void configReader::conFigureSerial(HardwareSerial *modbusPort)
 {
@@ -311,6 +314,7 @@ void configReader::loadSiteInfo()
     buffer = String(siteName) + "." + String(plantName) + "." + String(deviceName) + ".";
     _siteInfo = buffer;
     buffer = "";
+    SiteConfDoc.clear();
 }
 void configReader::loadTimeInfo()
 {
@@ -377,25 +381,33 @@ void configReader::checkTimeUpdate(bool *timeUpdateFlag)
 {
     if (*timeUpdateFlag == true)
     {
-        loadTimeInfo();
-        DynamicJsonDocument json(128);
-        DeserializationError error = deserializeJson(json, _timeSetup);
-        const char *ntpserver = json["ntp_server"];
-        const char *tzone = json["time_zone"];
-        const char *tsource = json["time_source"];
-        NTPServer = ntpserver;
-        timezone = tzone;
-        timeSource = tsource;
-        // Serial.println(getTimeSource());
-        if (getTimeSource() == "NTP")
+        try
         {
-            configTime((timezone.toFloat() * 3600), 0, NTPServer.c_str());
+            loadTimeInfo();
+            DynamicJsonDocument json(128);
+            DeserializationError error = deserializeJson(json, _timeSetup);
+            const char *ntpserver = json["ntp_server"];
+            const char *tzone = json["time_zone"];
+            const char *tsource = json["time_source"];
+            NTPServer = ntpserver;
+            timezone = tzone;
+            timeSource = tsource;
+            // Serial.println(getTimeSource());
+            if (getTimeSource() == "NTP")
+            {
+                configTime((timezone.toFloat() * 3600), 0, NTPServer.c_str());
+            }
+            else
+            {
+                initRTC();
+            }
+            json.clear();
+            *timeUpdateFlag = false;
         }
-        else
+        catch (const std::exception &e)
         {
-            initRTC();
+            Serial.println(e.what());
         }
-        *timeUpdateFlag = false;
     }
 }
 
@@ -472,7 +484,7 @@ void configReader::checkRTCUpdate(bool *RTCUpdateFlag, wifiManager *netmanager)
 
         timeRTC.adjust(DateTime(year, month, day, hour, minute, second));
         // Serial.println("RTC updated successfully.");
-
+        doc.clear();
         *RTCUpdateFlag = false;
     }
 }
