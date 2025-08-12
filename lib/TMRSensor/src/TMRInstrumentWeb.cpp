@@ -19,7 +19,7 @@ bool TMRInstrumentWeb::publishConfig(String tagName, String data)
         http.addHeader("x-ni-api-key", _token);
         http.addHeader("Content-Type", "application/json");
 
-        DynamicJsonDocument doc(1024);
+        DynamicJsonDocument doc(512);
 
         // Root is an array
         JsonArray root = doc.to<JsonArray>();
@@ -73,91 +73,6 @@ bool TMRInstrumentWeb::publishConfig(String tagName, String data)
         return 0;
     }
 }
-
-// bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
-// {
-//     if (WiFi.status() != WL_CONNECTED)
-//         return false;
-
-//     HTTPClient http;
-//     String url = _host + "/nitag/v2/update-current-values";
-//     http.begin(url);
-//     http.addHeader("accept", "application/json");
-//     http.addHeader("x-ni-api-key", _token);
-//     http.addHeader("Content-Type", "application/json");
-
-//     DynamicJsonDocument inputDoc(8192);
-//     DeserializationError err = deserializeJson(inputDoc, data);
-//     if (err)
-//     {
-//         Serial.print("JSON parse error: ");
-//         Serial.println(err.c_str());
-//         http.end();
-//         http.~HTTPClient();
-//         return false;
-//     }
-
-//     JsonArray sensors = inputDoc["sensors"];
-//     if (!sensors)
-//     {
-//         http.end();
-//         http.~HTTPClient();
-//         return false;
-//     }
-
-//     DynamicJsonDocument outputDoc(8192); // final payload
-//     JsonArray root = outputDoc.to<JsonArray>();
-//     String workspaceId = getWorkspace();
-
-//     for (JsonObject sensor : sensors)
-//     {
-//         const char *tag = sensor["tag_name"];
-//         float scaledValue = sensor["value"]["scaled"];
-
-//         Serial.print("Tag:");
-//         Serial.print(tag);
-//         Serial.print(" Value:");
-//         Serial.println(scaledValue);
-//         Serial.print("At:");
-//         Serial.println(Timestamp);
-
-//         JsonObject entry = root.createNestedObject();
-//         entry["path"] = tag;
-//         entry["workspace"] = workspaceId;
-//         entry["timestamp"] = Timestamp;
-
-//         JsonArray updates = entry.createNestedArray("updates");
-//         JsonObject update = updates.createNestedObject();
-//         JsonObject value = update.createNestedObject("value");
-//         value["type"] = "DOUBLE";
-//         value["value"] = scaledValue;
-//     }
-
-//     String payload;
-//     serializeJson(outputDoc, payload);
-
-//     int httpResponseCode = http.POST(payload);
-//     Serial.print("HTTP Response code: ");
-//     Serial.println(httpResponseCode);
-
-//     if (httpResponseCode > 0)
-//     {
-//         String response = http.getString();
-//         Serial.println(response);
-//         http.end();
-//         fail_counter = 0;
-//         http.~HTTPClient();
-//         return true;
-//     }
-//     else
-//     {
-//         Serial.println("Error on sending POST");
-//         http.end();
-//         fail_counter++;
-//         http.~HTTPClient();
-//         return false;
-//     }
-// }
 
 bool TMRInstrumentWeb::parseAndBuildJSON(const String &data, String Timestamp, String &outputPayload)
 {
@@ -262,7 +177,7 @@ bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
 
     String payload;
     // parseAndBuildJSON(data, Timestamp, payload);
-    DynamicJsonDocument inputDoc(8192);
+    DynamicJsonDocument inputDoc(512);
     DeserializationError err = deserializeJson(inputDoc, data);
     if (err)
     {
@@ -279,7 +194,7 @@ bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
         return false;
     }
 
-    DynamicJsonDocument outputDoc(8192);
+    DynamicJsonDocument outputDoc(512);
     JsonArray root = outputDoc.to<JsonArray>();
     String workspaceId = getWorkspace();
 
@@ -363,7 +278,7 @@ bool TMRInstrumentWeb::reqWorkSpace()
         if (httpResponseCode > 0)
         {
             String response = http.getString();
-            DynamicJsonDocument myJson(2048);
+            DynamicJsonDocument myJson(512);
             DeserializationError error = deserializeJson(myJson, response);
             Serial.println();
             JsonArray workspaces = myJson["workspaces"];

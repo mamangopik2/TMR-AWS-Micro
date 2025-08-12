@@ -77,7 +77,7 @@ void CSVLogger::startThread(uint32_t stackSize, UBaseType_t priority, BaseType_t
     TaskHandle_t taskHandle;
     xTaskCreatePinnedToCore(
         CSVLogger::run, // Function
-        "MyTask",       // Name
+        "task Logger",  // Name
         stackSize,      // Stack size in words (not bytes)
         this,           // Task input parameter
         priority,       // Task priority

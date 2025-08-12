@@ -258,7 +258,7 @@ void wifiManager::handleSensorRead()
     server->sendHeader("Access-Control-Allow-Origin", "*");
     server->sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     server->sendHeader("Access-Control-Allow-Headers", "Content-Type");
-    server->send(200, "application/json", globalMessage);
+    server->send(200, "application/json", *globalMessage);
     this->sensorUpdated = true;
 }
 
@@ -892,7 +892,7 @@ void wifiManager::startThread(uint32_t stackSize, UBaseType_t priority, BaseType
     TaskHandle_t taskHandle;
     xTaskCreatePinnedToCore(
         wifiManager::routine, // Function
-        "MyTask",             // Name
+        "WiFi Manager",       // Name
         stackSize,            // Stack size in words (not bytes)
         this,                 // Task input parameter
         priority,             // Task priority

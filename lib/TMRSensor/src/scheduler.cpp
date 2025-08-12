@@ -1,6 +1,7 @@
 #include "TMRSensor.h"
-void scheduler::manage(const String &data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag)
+void scheduler::manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag)
 {
+    uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
     bool status;
     if (conf->getCloudInterval().toInt() >= 5) // if the sending interval > 5 minutes, activate sleep mode
     {
@@ -13,17 +14,34 @@ void scheduler::manage(const String &data, configReader *conf, wifiManager *netw
                 if (conf->getTimeSource() == "NTP")
                 {
                     *logFlag = 1;
-                    status = cloud->publishBulk(data, conf->getISOTimeNTP());
+                    Serial.print("Free Heap: ");
+                    Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
+                    Serial.println(" KB");
+
+                    if ((freeHeap / 1024) <= 100)
+                    {
+                        Serial.println("Not Enough Free Heap");
+                        ESP.restart();
+                    }
+                    status = cloud->publishBulk(*data, conf->getISOTimeNTP());
                 }
                 else
                 {
                     *logFlag = 1;
-                    status = cloud->publishBulk(data, conf->getISOTimeRTC());
+                    Serial.print("Free Heap: ");
+                    Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
+                    Serial.println(" KB");
+
+                    if ((freeHeap / 1024) <= 100)
+                    {
+                        Serial.println("Not Enough Free Heap");
+                        ESP.restart();
+                    }
+                    status = cloud->publishBulk(*data, conf->getISOTimeRTC());
                 }
                 if (status == true)
                 {
                     // Serial.println("deep sleep");
-                    *logFlag = 1;
                     deepSleep(conf->getCloudInterval().toInt() - *runUpTimeMinute);
                 }
                 else
@@ -47,16 +65,87 @@ void scheduler::manage(const String &data, configReader *conf, wifiManager *netw
             if (conf->getTimeSource() == "NTP")
             {
                 *logFlag = 1;
-                cloud->publishBulk(data, conf->getISOTimeNTP());
+                Serial.print("Free Heap: ");
+                Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
+                Serial.println(" KB");
+
+                if ((freeHeap / 1024) <= 100)
+                {
+                    Serial.println("Not Enough Free Heap");
+                    ESP.restart();
+                }
+                cloud->publishBulk(*data, conf->getISOTimeNTP());
             }
             else
             {
                 *logFlag = 1;
-                cloud->publishBulk(data, conf->getISOTimeRTC());
+                Serial.print("Free Heap: ");
+                Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
+                Serial.println(" KB");
+
+                if ((freeHeap / 1024) <= 100)
+                {
+                    Serial.println("Not Enough Free Heap");
+                    ESP.restart();
+                }
+                cloud->publishBulk(*data, conf->getISOTimeRTC());
             }
             *clockMinute = 0; // reset the minute timer after send the data
         }
     }
+}
+
+void scheduler::resetRegisterScheduler(unsigned long *currentUnixTimestamp, ModbusRTU *_modbusInstance, uint64_t slaveAddress, uint16_t regOffset, uint16_t regAddr)
+{
+    // reset the register scheduler
+    uint16_t val = 0;
+    _modbusInstance->writeHreg(slaveAddress, regOffset + regAddr, &val);
+}
+
+bool scheduler::checkMinutelyInterval(unsigned long *sourceTimer, unsigned long *storeTimer)
+{
+    if (*sourceTimer - *storeTimer >= 60)
+    {
+        *storeTimer = *sourceTimer;
+        return true;
+    }
+    return false;
+}
+bool scheduler::checkHourlyInterval(unsigned long *sourceTimer, unsigned long *storeTimer)
+{
+    if (*sourceTimer - *storeTimer >= 3600)
+    {
+        *storeTimer = *sourceTimer;
+        return true;
+    }
+    return false;
+}
+bool scheduler::checkDaylyInterval(unsigned long *sourceTimer, unsigned long *storeTimer)
+{
+    if (*sourceTimer - *storeTimer >= 86400)
+    {
+        *storeTimer = *sourceTimer;
+        return true;
+    }
+    return false;
+}
+bool scheduler::checkMonthlyInterval(unsigned long *sourceTimer, unsigned long *storeTimer)
+{
+    if (*sourceTimer - *storeTimer >= 2592000) // 30 days
+    {
+        *storeTimer = *sourceTimer;
+        return true;
+    }
+    return false;
+}
+bool scheduler::checkYearlyInterval(unsigned long *sourceTimer, unsigned long *storeTimer)
+{
+    if (*sourceTimer - *storeTimer >= 31536000) // 365 days
+    {
+        *storeTimer = *sourceTimer;
+        return true;
+    }
+    return false;
 }
 
 void scheduler::deepSleep(unsigned long durationMinute)

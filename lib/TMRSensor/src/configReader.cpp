@@ -9,7 +9,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
     String sensorsData[50] = {};
     uint8_t sensorsIndex = 0;
     // //Serial.println(jsonString);
-    DynamicJsonDocument doc(2048);
+    DynamicJsonDocument doc(512);
 
     // Deserialize the JSON string into the document
     DeserializationError error = deserializeJson(doc, _jsonString);
@@ -114,24 +114,65 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         }
         if (String(phy) == "analog")
         {
+            Serial.println("Analog channel: " + String(ai_ch));
             if (String(calibration_mode) == "1") // kFactor
             {
+                try
+                {
+                    sensorData = sensManager.readAnalog_KF(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor), atof(offset_val));
+                }
+                catch (const std::exception &e)
+                {
+                    sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
+                                                                                    "\"value\":{\"unscaled\":" +
+                                 0 +
+                                 ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+                }
+
                 // //Serial.println("with KF");
-                sensorData = sensManager.readAnalog_KF(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor), atof(offset_val));
             }
             else if (String(calibration_mode) == "2") // sensitivity
             {
-                // //Serial.println("with sensitivity");
-                sensorData = sensManager.readAnalog_S(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(sensitivity), atof(offset_val));
+                try
+                {
+                    sensorData = sensManager.readAnalog_S(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(sensitivity), atof(offset_val));
+                }
+                catch (const std::exception &e)
+                {
+                    sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
+                                                                                    "\"value\":{\"unscaled\":" +
+                                 0 +
+                                 ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+                }
             }
             else if (String(calibration_mode) == "3") // two-points callibration
             {
                 // //Serial.println("with two-points callibration");
-                sensorData = sensManager.readAnalog_MAP(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
+                try
+                {
+                    sensorData = sensManager.readAnalog_MAP(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
+                }
+                catch (const std::exception &e)
+                {
+                    sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
+                                                                                    "\"value\":{\"unscaled\":" +
+                                 0 +
+                                 ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+                }
             }
             else
             {
-                sensorData = sensManager.readAnalog_KF(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor), atof(offset_val));
+                try
+                {
+                    sensorData = sensManager.readAnalog_KF(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor), atof(offset_val));
+                }
+                catch (const std::exception &e)
+                {
+                    sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
+                                                                                    "\"value\":{\"unscaled\":" +
+                                 0 +
+                                 ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+                }
             }
         }
         if (String(phy) == "digital")
@@ -140,10 +181,10 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         }
         sensorsData[sensorsIndex] = sensorData;
         sensorsIndex++;
-        // //Serial.print("index: ");
-        // //Serial.print(sensorsIndex);
-        // //Serial.print(" data: ");
-        // //Serial.println(sensorData);
+        // Serial.print("index: ");
+        // Serial.print(sensorsIndex);
+        // Serial.print(" data: ");
+        // Serial.println(sensorData);
     }
 
     // Create JSON document
@@ -251,7 +292,7 @@ void configReader::loadSerialConfigFile()
     this->_serialComPropertiesJson = serialConfFile.readString();
     serialConfFile.close();
 
-    DynamicJsonDocument SerialConfDoc(2048);
+    DynamicJsonDocument SerialConfDoc(512);
 
     // Deserialize the JSON string into the document
     DeserializationError error = deserializeJson(SerialConfDoc, _serialComPropertiesJson);
@@ -301,7 +342,7 @@ void configReader::loadSiteInfo()
     File JsonFile = SPIFFS.open("/site_config.json");
     String unparsedJson = JsonFile.readString();
     JsonFile.close();
-    DynamicJsonDocument SiteConfDoc(2048);
+    DynamicJsonDocument SiteConfDoc(512);
     // Deserialize the JSON string into the document
     DeserializationError error = deserializeJson(SiteConfDoc, unparsedJson);
     String buffer;
@@ -334,25 +375,33 @@ String configReader::getCloudHost()
 {
     DynamicJsonDocument myJson(128);
     DeserializationError error = deserializeJson(myJson, _cloudSetup);
-    return String((const char *)myJson["hostname"]);
+    String data = (const char *)myJson["hostname"];
+    myJson.clear();
+    return data;
 }
 String configReader::getCloudPort()
 {
     DynamicJsonDocument myJson(128);
     DeserializationError error = deserializeJson(myJson, _cloudSetup);
-    return String((const char *)myJson["port_number"]);
+    String port = (const char *)myJson["port_number"];
+    myJson.clear();
+    return port;
 }
 String configReader::getCloudToken()
 {
     DynamicJsonDocument myJson(128);
     DeserializationError error = deserializeJson(myJson, _cloudSetup);
-    return String((const char *)myJson["token"]);
+    String token = (const char *)myJson["token"];
+    myJson.clear();
+    return token;
 }
 String configReader::getCloudInterval()
 {
     DynamicJsonDocument myJson(128);
     DeserializationError error = deserializeJson(myJson, _cloudSetup);
-    return String((const char *)myJson["interval"]);
+    String interval = (const char *)myJson["interval"];
+    myJson.clear();
+    return interval;
 }
 
 void configReader::checkSiteUpdate(bool *siteUpdateFlag)
@@ -467,6 +516,19 @@ String configReader::getISOTimeRTC()
     return String(buffer);
 }
 
+unsigned long configReader::getUnixTime()
+{
+    if (getTimeSource() == "RTC")
+    {
+        if (!timeRTC.isrunning())
+        {
+            initRTC();
+            return 0; // Return fallback if RTC isn't running
+        }
+        DateTime now = timeRTC.now();
+        return (now.unixtime());
+    }
+}
 void configReader::checkRTCUpdate(bool *RTCUpdateFlag, wifiManager *netmanager)
 {
     if (*RTCUpdateFlag == true)

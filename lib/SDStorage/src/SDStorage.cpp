@@ -4,7 +4,7 @@
 
 void SDStorage::init()
 {
-    if (!SD_MMC.begin())
+    if (!SD_MMC.begin("/sdcard", false, false, 100000, 5U))
     {
         Serial.println("Card Mount Failed");
         return;

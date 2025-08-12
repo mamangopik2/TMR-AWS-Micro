@@ -191,7 +191,7 @@ void TMRemoteMQ::publishFile(String filepath)
         // If buffer reaches the size limit, send it
         if (buffer.length() >= bufferSize)
         {
-            StaticJsonDocument<8192> doc;
+            StaticJsonDocument<512> doc;
             doc["file_name"] = filepath;
             doc["batch_total"] = batchTotal; // 0 means unknown
             doc["batch_number"] = batchNumber;
@@ -220,7 +220,7 @@ void TMRemoteMQ::publishFile(String filepath)
     // Send remaining data in buffer
     if (buffer.length() > 0)
     {
-        StaticJsonDocument<8192> doc;
+        StaticJsonDocument<512> doc;
         doc["file_name"] = filepath;
         doc["batch_total"] = batchTotal;
         doc["batch_number"] = batchNumber;
@@ -243,7 +243,7 @@ void TMRemoteMQ::publishFile(String filepath)
     }
 
     // Send EOF marker
-    StaticJsonDocument<2048> eofDoc;
+    StaticJsonDocument<512> eofDoc;
     eofDoc["file_name"] = filepath;
     eofDoc["batch_total"] = batchNumber;
     eofDoc["batch_number"] = -1;
@@ -272,7 +272,7 @@ void TMRemoteMQ::startThread(uint32_t stackSize, UBaseType_t priority, BaseType_
     TaskHandle_t taskHandle;
     xTaskCreatePinnedToCore(
         TMRemoteMQ::run, // Function
-        "MyTask",        // Name
+        "Remote Task",   // Name
         stackSize,       // Stack size in words (not bytes)
         this,            // Task input parameter
         priority,        // Task priority

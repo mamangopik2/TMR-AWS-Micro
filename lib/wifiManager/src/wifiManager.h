@@ -49,7 +49,7 @@ public:
     void begin();
     String _AP_SSID, _AP_PWD, _SSID, _PASSWORD, _SUBNET, _GATEWAY, _STATIC_IP, _SERVER_PORT, _SERVER_IP, _BUFFER_SIZE, _CON_MODE;
     String scannedSSID = "";
-    String globalMessage;
+    String *globalMessage;
     String RTCJson;
     String fuseSensor(String existingJson, String newSensorJson);
     bool enableDHCP = false;

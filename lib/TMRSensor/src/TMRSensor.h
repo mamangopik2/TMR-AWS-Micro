@@ -10,6 +10,7 @@
 #include <wifiManager.h>
 #include <Wire.h>
 #include <Adafruit_ADS1X15.h>
+#include <TMRLicenseManager.h>
 
 #if defined USE_SD_LOG
 #include <SDStorage.h>
@@ -56,10 +57,14 @@ class sensorManager
 #define MODBUS_INT32 4
 #define MODBUS_FLOAT 5
 #define MODBUS_DOUBLE 6
+
 private:
     uint32_t registeredSensor = 0;
+    static void run(void *parameter);
 
 public:
+    TMRLicenseManager *licenseManager;
+    float analogReadData[4] = {0, 0, 0, 0};
     Adafruit_ADS1015 *_ADCInterface;
     sensorManager(/* args */);
     String readModbusKF(String EU, String RU, String tagName1, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint16_t offsett, bool bigEndian, float kFactor, float ofset);
@@ -67,10 +72,14 @@ public:
     String readModbus(String EU, String RU, String tagName3, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint32_t offsett, bool bigEndian, float readoutMin, float readoutMax, float actualMin, float actualMax);
     void initAnalog(uint8_t address, adsGain_t gain);
     void initAnalog(adsGain_t gain);
+    void readRawAnalog();
     String readAnalog_KF(String EU, String RU, String tagName1, uint8_t channel, float kFactor, float ofset);
     String readAnalog_S(String EU, String RU, String tagName2, uint8_t channel, float sensitivity, float ofset);
     String readAnalog_MAP(String EU, String RU, String tagName2, uint8_t channel, float readoutMin, float readoutMax, float actualMin, float actualMax);
     String readDigital(String EU, String RU, String tagName, uint8_t channel);
+    void startThread(uint32_t stackSize = 4096,
+                     UBaseType_t priority = 1,
+                     BaseType_t core = 1);
     // String readDigital();
 };
 
@@ -107,6 +116,10 @@ class configReader
 {
 private:
 public:
+    // store data on RTC memory, ref:https://simplyexplained.com/courses/programming-esp32-with-arduino/using-rtc-memory
+    RTC_DATA_ATTR unsigned long currentULPUnixTimestamp = 0; // store data on RTC memory
+    RTC_DATA_ATTR unsigned long lastULPUnixTimestamp = 0;    // store data on RTC memory
+    unsigned long currentUnixTimestamp = 0;
     String _jsonString;
     String getSensorsValue(sensorManager &sensManager, modbusSensor &mbInterface);
     void loadFile();
@@ -150,13 +163,20 @@ public:
     String getISOTimeNTP();
     String getISOTimeRTC();
     void initRTC();
+    unsigned long getUnixTime();
 };
 class scheduler
 {
 private:
 public:
-    void manage(const String &data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag);
+    void manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag);
     void deepSleep(unsigned long durationMinute);
+    void resetRegisterScheduler(unsigned long *currentUnixTimestamp, ModbusRTU *_modbusInstance, uint64_t slaveAddress, uint16_t regOffset, uint16_t regAddr);
+    bool checkMinutelyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
+    bool checkHourlyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
+    bool checkDaylyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
+    bool checkMonthlyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
+    bool checkYearlyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
 };
 
 #endif // TMR_sensor_h
