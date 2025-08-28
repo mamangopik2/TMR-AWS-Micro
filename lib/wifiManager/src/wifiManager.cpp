@@ -6,7 +6,7 @@ wifiManager::wifiManager()
 }
 void wifiManager::begin(/* args */)
 {
-    _AP_SSID = "TMR AWS";
+    _AP_SSID = "TMR A32";
     _AP_PWD = "TMR-Instrument";
 
     WiFi.mode(WIFI_AP_STA);
@@ -736,7 +736,9 @@ void wifiManager::run()
             }
             if (DNSNotConfigured == true)
             {
-                if (!MDNS.begin("TMR-AWS"))
+                String macAddress = String(WiFi.macAddress());
+                macAddress.replace(':', '-');
+                if (!MDNS.begin("tmr-a32-" + macAddress.substring(macAddress.length() - 5)))
                 { // Set the hostname to "esp32.local"
                     Serial.println("Error setting up MDNS responder!");
                 }
