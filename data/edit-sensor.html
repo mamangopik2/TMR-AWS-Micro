@@ -71,6 +71,17 @@
                 <option value="FALSE" selected>FALSE</option>
             </select>
 
+            <label for="modbus_reset_routine">Register Reset Routine</label>
+            <select id="modbus_reset_routine" name="modbus_reset_routine">
+                <option value="NONE">NONE</option>
+                <option value="MINUTELY">Every 1 Minute</option>
+                <option value="HOURLY">Every 1 Hour</option>
+                <option value="DAILY">Everyday</option>
+                <option value="MONTHLY">Every Month</option>
+                <option value="YEARLY">Every Year</option>
+                <!-- add more types if needed -->
+            </select>
+
         </div>
         <div id="ai_properties">
             <label for="ai_channel">Analog Input</label>
@@ -412,7 +423,8 @@
                     modbus_offset: document.getElementById("modbus_offset").value,
                     modbus_reg_type: document.getElementById("modbus_reg_type").value,
                     modbus_dtype: document.getElementById("modbus_dtype").value,
-                    big_endian: document.getElementById("big_endian").value
+                    big_endian: document.getElementById("big_endian").value,
+                    modbus_reset_routine: document.getElementById("modbus_reset_routine").value
                 },
                 digital: {
                     di_ch: document.getElementById("di_channel").value

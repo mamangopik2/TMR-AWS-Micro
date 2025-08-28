@@ -33,6 +33,7 @@ document.getElementById("dropdown-buttons").innerHTML =
     <button id="button_LOGOUT">LOGOUT</button>
     <button id="device_info">DEVICE INFO</button>
     <button id="button_configured_sensor">CONFIGURED SENSOR</button>
+    <button id="button_logged_data">LOGGED DATA</button>
     <button id="button_network">NETWORK</button>
     <button id="button_interfaces">MODBUS MASTER</button>
     <button id="button_sensors">ADD SENSORS</button>
@@ -53,6 +54,7 @@ document.getElementById("button_cloud_setup").onclick = () => window.location = 
 document.getElementById("button_OTA").onclick = () => window.location = base_url + '/OTA.html';
 document.getElementById("button_configured_sensor").onclick = () => window.location = base_url + '/data_viewer.html';
 document.getElementById("device_info").onclick = () => window.location = base_url + '/device-info.html';
+document.getElementById("button_logged_data").onclick = () => window.location = base_url + '/log-files.html';
 document.getElementById("button_LOGOUT").onclick = () => {
     setCookie("login", "", 3600);
     window.location.reload();

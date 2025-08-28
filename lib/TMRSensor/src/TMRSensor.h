@@ -11,6 +11,8 @@
 #include <Wire.h>
 #include <Adafruit_ADS1X15.h>
 #include <TMRLicenseManager.h>
+#include "esp_attr.h"
+#include <time.h>
 
 #if defined USE_SD_LOG
 #include <SDStorage.h>
@@ -27,6 +29,16 @@
 #define DI2 31
 #define DI3 32
 #define DI4 33
+
+#define PHERI_SLEEP_PIN 32
+#define VBAT_SENSE_PIN 34
+
+#define RST_NONE 0
+#define RST_MINUTELY 1
+#define RST_HOURLY 2
+#define RST_DAILY 3
+#define RST_MONTHLY 4
+#define RST_YEARLY 5
 
 class modbusSensor
 {
@@ -116,9 +128,19 @@ class configReader
 {
 private:
 public:
-    // store data on RTC memory, ref:https://simplyexplained.com/courses/programming-esp32-with-arduino/using-rtc-memory
-    RTC_DATA_ATTR unsigned long currentULPUnixTimestamp = 0; // store data on RTC memory
-    RTC_DATA_ATTR unsigned long lastULPUnixTimestamp = 0;    // store data on RTC memory
+    uint16_t modbusHREGS[50][4] = {0};
+
+    /* structure for modbusHREGS Array
+    modbusHREGS = {}
+    {
+        slaveID, regOffset, regAddr, mode
+    };
+    */
+
+    uint16_t modbusRegistersCount = 0;
+
+    unsigned long *currentULPUnixTimestamp;
+    unsigned long *lastULPUnixTimestamp;
     unsigned long currentUnixTimestamp = 0;
     String _jsonString;
     String getSensorsValue(sensorManager &sensManager, modbusSensor &mbInterface);
@@ -129,6 +151,7 @@ public:
     String _serialMode;
     String _siteInfo;
     String _timeSetup;
+
     String _cloudSetup;
     String _siteName;
     String _plantName;
@@ -169,14 +192,24 @@ class scheduler
 {
 private:
 public:
+    uint16_t (*registers)[4];
+    uint16_t *registerCount;
     void manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag);
     void deepSleep(unsigned long durationMinute);
-    void resetRegisterScheduler(unsigned long *currentUnixTimestamp, ModbusRTU *_modbusInstance, uint64_t slaveAddress, uint16_t regOffset, uint16_t regAddr);
-    bool checkMinutelyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
-    bool checkHourlyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
-    bool checkDaylyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
-    bool checkMonthlyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
-    bool checkYearlyInterval(unsigned long *sourceTimer, unsigned long *storeTimer);
+    void checkRegisterSchedule(ModbusRTU *_modbusInstance, unsigned long currentUnixTimestamp, unsigned long memoryTimer, unsigned long *storeTimer);
+    void resetRegisterScheduler(ModbusRTU *_modbusInstance, uint64_t slaveAddress, uint16_t regOffset, uint16_t regAddr);
+    bool checkMinutelyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
+    bool checkHourlyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
+    bool checkDailyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
+    bool checkMonthlyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
+    bool checkYearlyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
+
+    bool minute_elapsed(time_t currenTimeStamp, time_t past);
+    bool hour_elapsed(time_t currenTimeStamp, time_t past);
+    bool day_elapsed(time_t currenTimeStamp, time_t past);
+    bool week_elapsed(time_t currenTimeStamp, time_t past);
+    bool month_elapsed(time_t currenTimeStamp, time_t past);
+    bool year_elapsed(time_t currenTimeStamp, time_t past);
 };
 
 #endif // TMR_sensor_h

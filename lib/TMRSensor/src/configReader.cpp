@@ -6,6 +6,7 @@ RTC_DS1307 timeRTC;
 
 String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &mbInterface)
 {
+    uint16_t byteCounterBuffer = 0;
     String sensorsData[50] = {};
     uint8_t sensorsIndex = 0;
     // //Serial.println(jsonString);
@@ -47,6 +48,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         const char *dtype = sensor["modbus"]["modbus_dtype"];
         const char *hardware_channel = sensor["modbus"]["hardware_channel"];
         const char *mbBigEndian = sensor["modbus"]["big_endian"];
+        const char *resetTime = sensor["modbus"]["modbus_reset_routine"];
 
         // Digital input
         const char *di_ch = sensor["digital"]["di_ch"];
@@ -111,10 +113,29 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             {
                 sensorData = sensManager.readModbus(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor), atof(offset_val));
             }
+            if (String(reg_type) == "HREG")
+            {
+                modbusHREGS[byteCounterBuffer][0] = atoi(device_id);
+                modbusHREGS[byteCounterBuffer][1] = atoi(offset);
+                modbusHREGS[byteCounterBuffer][2] = atoi(reg);
+
+                if (String(resetTime) == "MINUTELY")
+                    modbusHREGS[byteCounterBuffer][3] = RST_MINUTELY;
+                else if (String(resetTime) == "HOURLY")
+                    modbusHREGS[byteCounterBuffer][3] = RST_HOURLY;
+                else if (String(resetTime) == "DAILY")
+                    modbusHREGS[byteCounterBuffer][3] = RST_DAILY;
+                else if (String(resetTime) == "MONTHLY")
+                    modbusHREGS[byteCounterBuffer][3] = RST_MONTHLY;
+                else if (String(resetTime) == "YEARLY")
+                    modbusHREGS[byteCounterBuffer][3] = RST_YEARLY;
+                else
+                    modbusHREGS[byteCounterBuffer][3] = RST_NONE; // no reset routine
+                byteCounterBuffer++;
+            }
         }
         if (String(phy) == "analog")
         {
-            Serial.println("Analog channel: " + String(ai_ch));
             if (String(calibration_mode) == "1") // kFactor
             {
                 try
@@ -185,6 +206,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         // Serial.print(sensorsIndex);
         // Serial.print(" data: ");
         // Serial.println(sensorData);
+        this->modbusRegistersCount = byteCounterBuffer; // update the modbus registers count
     }
 
     // Create JSON document

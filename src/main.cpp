@@ -13,6 +13,13 @@
 #include <serialTool.h>
 #include <EEPROM.h>
 
+RTC_DATA_ATTR unsigned long currentULPUnixTimestamp = 0; // store data on RTC memory
+RTC_DATA_ATTR unsigned long ULPminuteTimerCounter = 0;   // store data on RTC memory
+RTC_DATA_ATTR unsigned long ULPHourTimerCounter = 0;     // store data on RTC memory
+RTC_DATA_ATTR unsigned long ULPDayTimerCounter = 0;      // store data on RTC memory
+RTC_DATA_ATTR unsigned long ULPMonthTimerCounter = 0;    // store data on RTC memory
+RTC_DATA_ATTR unsigned long ULPYearTimerCounter = 0;     // store data on RTC memory
+
 String sensorDataPacket;
 uint8_t secondCounter = 0;
 uint8_t runUpTimeMinute = 2;
@@ -62,7 +69,7 @@ void clock(void *param)
 String getDeviceInfo()
 {
   StaticJsonDocument<128> info;
-  info["battery_voltage"] = 3.7;
+  info["battery_voltage"] = String(((analogRead(VBAT_SENSE_PIN) * (3.3 / 4095.0)) * 2) + 0.29, 2); // read the battery voltage
   info["sn"] = "SN12345678";
   info["site"] = sensorConfigurator._siteName;
   info["plant"] = sensorConfigurator._plantName;
@@ -81,9 +88,12 @@ String getDeviceInfo()
 
 void setup()
 {
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
+  // WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
   setCpuFrequencyMhz(80);
   esp_task_wdt_init(0xffffffff, true);
+  pinMode(PHERI_SLEEP_PIN, OUTPUT);
+  pinMode(VBAT_SENSE_PIN, INPUT);      // set the VBAT sense pin as input
+  digitalWrite(PHERI_SLEEP_PIN, HIGH); // set the sleep pin to high because it is driving NPN transistor
   Serial.setRxBufferSize(1024);
   Serial.begin(115200); // host serial
   EEPROM.begin(1024);   // initialize EEPROM with 1024 bytes
@@ -125,6 +135,9 @@ void setup()
 
   mbInstrument.init(&Serial2); // init the modbus instrument
 
+  systemScheduler.registerCount = &sensorConfigurator.modbusRegistersCount; // set the register count to the scheduler
+  systemScheduler.registers = sensorConfigurator.modbusHREGS;               // set the
+
   cloud.setHost(sensorConfigurator.getCloudHost().c_str());
   cloud.begin(sensorConfigurator.getCloudToken().c_str());
   bool initTime = true;
@@ -140,7 +153,6 @@ void setup()
   cloud.reqWorkSpace();
 
   cloud.sensorConfiguration = &sensorConfigurator._jsonString;
-  // networkManager.csvLogger = &logger; // pass the logger refference to the net manager to give csv files access
 
   Wire.begin();
   byte error, address;
@@ -179,6 +191,44 @@ void setup()
 
 void loop() // this loop runs on Core1 by default
 {
+testTimer:
+  unsigned long lookupTimer;
+  currentULPUnixTimestamp = sensorConfigurator.getUnixTime();                                                              // set the RTC unix time to the current unix time
+  lookupTimer = ULPminuteTimerCounter;                                                                                     // get the current unix time
+  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
+  ULPminuteTimerCounter = lookupTimer;                                                                                     // update the minute timer counter
+
+  lookupTimer = ULPHourTimerCounter;                                                                                       // get the current hour timer
+  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
+  ULPHourTimerCounter = lookupTimer;                                                                                       // update the hour timer counter
+
+  lookupTimer = ULPDayTimerCounter;                                                                                        // get the current day timer
+  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
+  ULPDayTimerCounter = lookupTimer;                                                                                        // update the day timer counter
+
+  lookupTimer = ULPMonthTimerCounter;                                                                                      // get the current month timer
+  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
+  ULPMonthTimerCounter = lookupTimer;                                                                                      // update the month timer counter
+
+  lookupTimer = ULPYearTimerCounter;                                                                                       // get the current year timer
+  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
+  ULPYearTimerCounter = lookupTimer;                                                                                       // update the year timer counter
+
+  Serial.print("Current Unix Time: ");
+  Serial.println(currentULPUnixTimestamp);
+  Serial.print("Minute Timer: ");
+  Serial.println(ULPminuteTimerCounter);
+  Serial.print("DeltaMinuteTimer: ");
+  Serial.println(currentULPUnixTimestamp - ULPminuteTimerCounter);
+
+  Serial.print("Hour Timer: ");
+  Serial.println(ULPHourTimerCounter);
+  Serial.print("DeltaHourTimer: ");
+  Serial.println(currentULPUnixTimestamp - ULPHourTimerCounter);
+  Serial.print("Day Timer: ");
+  Serial.println(ULPDayTimerCounter);
+  Serial.print("DeltaDayTimer: ");
+
 unlicensed:
   sensorDataPacket = sensorConfigurator.getSensorsValue(instrumentManager, mbInstrument); // sensor data packet which will be send to the cloud
   networkManager.globalMessage = &sensorDataPacket;                                       // set the broadcast message for handling sensor value viewer
@@ -189,19 +239,10 @@ unlicensed:
   sensorConfigurator.checkCloudUpdate(&networkManager.cloudUpdated, &cloud);              // check for update if there any changes on the cloud conf if update occurs then update the cloud setup
   sensorConfigurator.checkRTCUpdate(&networkManager.RTCUpdated, &networkManager);         // check for update if there any changes on the RTC Configuration update
 
-  sensorConfigurator.currentULPUnixTimestamp = sensorConfigurator.getUnixTime(); // set the RTC unix time to the current unix time
-  unsigned long currentUnixTime = sensorConfigurator.currentULPUnixTimestamp;    // get the current unix time from the RTC Memory
-
   uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
   Serial.print("Free Heap: ");
   Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
   Serial.println(" KB");
-
-  if ((freeHeap / 1024) <= 100)
-  {
-    Serial.println("Not Enough Free Heap");
-    ESP.restart();
-  }
 
   vTaskDelay(3000 / portTICK_PERIOD_MS); // delay
 
@@ -218,6 +259,7 @@ unlicensed:
                            &cloud,
                            &runUpTimeMinute,
                            &minuteCounter, &readyToLog);
+
     fileLists = logger.microSD->listDir(SD_MMC, "/", 1);
     deviceInfo = getDeviceInfo();
   }
