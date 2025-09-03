@@ -658,6 +658,8 @@ void wifiManager::compile()
                { handleLogFileDownload(); });
     server->on("/get-password", [this]()
                { handleGetPassword(); });
+    server->on("/active-sensors", [this]()
+               { handleActiveSensors(); });
 
     server->onNotFound([this]()
                        {
@@ -792,6 +794,12 @@ void wifiManager::handleUploadForm()
         <input type="submit" value="Upload">
       </form>
     )rawliteral");
+}
+
+void wifiManager::handleActiveSensors()
+{
+    // Handle active sensors request
+    server->send(200, "application/json", *globalMessage);
 }
 
 void wifiManager::handleFileUpload()

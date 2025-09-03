@@ -79,6 +79,7 @@ public:
     float analogReadData[4] = {0, 0, 0, 0};
     Adafruit_ADS1015 *_ADCInterface;
     sensorManager(/* args */);
+
     String readModbusKF(String EU, String RU, String tagName1, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint16_t offsett, bool bigEndian, float kFactor, float ofset);
     String readModbus(String EU, String RU, String tagName2, modbusSensor modbus, uint32_t deviceID, uint8_t dataType, uint16_t regType, uint16_t regAddr, uint8_t offsett, bool bigEndian, float sensitivity, float ofset);
     String readModbus(String EU, String RU, String tagName3, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint32_t offsett, bool bigEndian, float readoutMin, float readoutMax, float actualMin, float actualMax);
@@ -139,6 +140,7 @@ public:
 
     uint16_t modbusRegistersCount = 0;
 
+    float getSensorValue(JsonArray sensors, const char *tag);
     unsigned long *currentULPUnixTimestamp;
     unsigned long *lastULPUnixTimestamp;
     unsigned long currentUnixTimestamp = 0;
@@ -196,20 +198,10 @@ public:
     uint16_t *registerCount;
     void manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag);
     void deepSleep(unsigned long durationMinute);
-    void checkRegisterSchedule(ModbusRTU *_modbusInstance, unsigned long currentUnixTimestamp, unsigned long memoryTimer, unsigned long *storeTimer);
     void resetRegisterScheduler(ModbusRTU *_modbusInstance, uint64_t slaveAddress, uint16_t regOffset, uint16_t regAddr);
-    bool checkMinutelyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
-    bool checkHourlyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
-    bool checkDailyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
-    bool checkMonthlyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
-    bool checkYearlyInterval(unsigned long currentUnixTimestamp, unsigned long storeTimer);
 
-    bool minute_elapsed(time_t currenTimeStamp, time_t past);
-    bool hour_elapsed(time_t currenTimeStamp, time_t past);
-    bool day_elapsed(time_t currenTimeStamp, time_t past);
-    bool week_elapsed(time_t currenTimeStamp, time_t past);
-    bool month_elapsed(time_t currenTimeStamp, time_t past);
-    bool year_elapsed(time_t currenTimeStamp, time_t past);
+    void timerCounter(uint32_t timestamp, uint32_t *lastTimestamp, uint32_t *sec, uint32_t *min, uint32_t *hour, uint32_t *day, byte *minFlag, byte *hourFlag, byte *dayFlag);
+    void resetRegisterByFlag(ModbusRTU *_modbusInstance, byte *flag, uint16_t nufOfreg);
 };
 
 #endif // TMR_sensor_h

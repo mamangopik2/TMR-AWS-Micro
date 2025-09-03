@@ -1,7 +1,9 @@
 #include <SDStorage.h>
 
 #ifdef SDMMC
-
+#ifdef ESP32
+#define BOOT_OPT_PIN 2
+#endif
 void SDStorage::init()
 {
     if (!SD_MMC.begin("/sdcard", false, false, 100000, 5U))
@@ -252,7 +254,7 @@ bool SDStorage::fileExists(String filename)
 #ifdef SDSPI
 void SDStorage::init()
 {
-    if (!SD.begin(5))
+    if (!SD.begin(13))
     {
         Serial.println("Card Mount Failed");
         return;

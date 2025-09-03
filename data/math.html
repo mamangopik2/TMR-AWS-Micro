@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add Math Operation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dropdown" style="position: absolute; top: 0; left: 2%;">
+        <button class="dropdown-button">&#9776;</button>
+        <div class="dropdown-content" id="dropdown-buttons">
+        </div>
+    </div>
+    <script src="header-button.js"></script>
+    <div class="container">
+
+        <h2>Add Math Operation</h2>
+        <img src="logo.png" alt="TMR logo">
+
+        <label for="formula_name">Formula Name</label>
+        <input type="text" name="formula_name" id="formula_name" placeholder="Formula">
+        <label for="operand1">Data Source 1</label>
+        <select name="operand1" id="operand1">
+            <option value="NULL">SELECT</option>
+            <option value="sensors">Sensors Channel</option>
+            <option value="constant">Insert constant</option>
+        </select>
+
+
+        <label for="operand2">Data Source 2</label>
+        <select name="operand2" id="operand2">
+            <option value="NULL">SELECT</option>
+            <option value="sensors">Sensors Channel</option>
+            <option value="constant">Insert constant</option>
+        </select>
+        <br><br><br>
+
+        <div id="equation_preview" style="color: white;">
+
+        </div>
+
+        <div id="operand1_sensor">
+            <label for="operand1_sensor_select">Select Sensor Channel</label>
+            <select name="operand1_sensor_select" id="operand1_sensor_select">
+                <option value="NULL">SELECT</option>
+            </select>
+        </div>
+        <div id="operand1_constant">
+            <label for="operand1_constant_input">Insert Constant Value</label>
+            <input type="text" name="operand1_constant_input" id="operand1_constant_input" placeholder="Constant Value">
+        </div>
+
+
+
+
+
+        <label for="operator">Math Operation</label>
+        <select name="operator" id="operator">
+            <option value="+">Addition</option>
+            <option value="-">Subtraction</option>
+            <option value="x">Multiplication</option>
+            <option value="/">Division</option>
+        </select>
+
+        <div id="operand2_sensor">
+            <label for="operand2_sensor_select">Select Sensor Channel</label>
+            <select name="operand2_sensor_select" id="operand2_sensor_select">
+                <option value="NULL">SELECT</option>
+            </select>
+        </div>
+        <div id="operand2_constant">
+            <label for="operand2_constant_input">Insert Constant Value</label>
+            <input type="text" name="operand2_constant_input" id="operand2_constant_input" placeholder="Constant Value">
+        </div>
+
+
+
+        <button id="button_save">SAVE</button>
+    </div>
+</body>
+<script src="beacon.js"></script>
+<script>
+    var base_url = window.location.origin;
+    let urlScan = base_url + '/active-sensors';
+    var formula_name = document.getElementById('formula_name');
+    var operand1_selector = document.getElementById('operand1');
+    var operand2_selector = document.getElementById('operand2');
+    var operator_selector = document.getElementById('operator');
+    var button_save = document.getElementById('button_save');
+    //payload from active sensors : 
+    // {"active_sensors":{{"sensors":[{"tag_name":"Gn.Slamet.shelter15.AWS2.s1","value":{"unscaled":0,"scaled":0.0000},"eng_unit":"V","raw_unit":"V"},{"tag_name":"Gn.Slamet.shelter15.AWS2.s2","value":{"unscaled":0,"scaled":0.0000},"eng_unit":"V","raw_unit":"V"}]}}}
+
+
+    fetch(urlScan)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Active Sensors:', data);
+            let sensors = data.sensors;
+            let sensor1_select = document.getElementById('operand1_sensor_select');
+            let sensor2_select = document.getElementById('operand2_sensor_select');
+
+            sensors.forEach(sensor => {
+                let option1 = document.createElement('option');
+                option1.value = sensor.tag_name;
+                option1.text = sensor.tag_name;
+                sensor1_select.appendChild(option1);
+
+                let option2 = document.createElement('option');
+                option2.value = sensor.tag_name;
+                option2.text = sensor.tag_name;
+                sensor2_select.appendChild(option2);
+            });
+        });
+
+    var payload = {};
+
+    const alterDisplay = () => {
+        // Show/hide operand1 input
+        if (operand1_selector.value == "sensors") {
+            document.getElementById('operand1_sensor').style.display = "block";
+            document.getElementById('operand1_constant').style.display = "none";
+        } else if (operand1_selector.value == "constant") {
+            document.getElementById('operand1_constant').style.display = "block";
+            document.getElementById('operand1_sensor').style.display = "none";
+        } else {
+            document.getElementById('operand1_constant').style.display = "none";
+            document.getElementById('operand1_sensor').style.display = "none";
+        }
+
+        // Show/hide operand2 input
+        if (operand2_selector.value == "sensors") {
+            document.getElementById('operand2_sensor').style.display = "block";
+            document.getElementById('operand2_constant').style.display = "none";
+        } else if (operand2_selector.value == "constant") {
+            document.getElementById('operand2_constant').style.display = "block";
+            document.getElementById('operand2_sensor').style.display = "none";
+        } else {
+            document.getElementById('operand2_constant').style.display = "none";
+            document.getElementById('operand2_sensor').style.display = "none";
+        }
+
+        // Build preview correctly (use AND `&&`)
+        let preview = "Please select both data sources and enter a formula name";
+
+        if (operand1_selector.value == 'sensors' && operand2_selector.value == 'sensors') {
+            preview = `${formula_name.value} <b>=</b> ${document.getElementById('operand1_sensor_select').value} <b>${operator_selector.value}</b> ${document.getElementById('operand2_sensor_select').value}`;
+        } else if (operand1_selector.value == 'sensors' && operand2_selector.value == 'constant') {
+            preview = `${formula_name.value} <b>=</b> ${document.getElementById('operand1_sensor_select').value} <b>${operator_selector.value}</b> ${document.getElementById('operand2_constant_input').value}`;
+        } else if (operand1_selector.value == 'constant' && operand2_selector.value == 'sensors') {
+            preview = `${formula_name.value} <b>=</b> ${document.getElementById('operand1_constant_input').value} <b>${operator_selector.value}</b> ${document.getElementById('operand2_sensor_select').value}`;
+        } else if (operand1_selector.value == 'constant' && operand2_selector.value == 'constant') {
+            preview = `${formula_name.value} <b>=</b> ${document.getElementById('operand1_constant_input').value} <b>${operator_selector.value}</b> ${document.getElementById('operand2_constant_input').value}`;
+        }
+
+        document.getElementById('equation_preview').innerHTML = preview;
+    };
+
+    // Run once on load
+    window.addEventListener('DOMContentLoaded', alterDisplay);
+
+    // Update preview when inputs change
+    operand1_selector.addEventListener('change', alterDisplay);
+    operand2_selector.addEventListener('change', alterDisplay);
+    operator_selector.addEventListener('change', alterDisplay);
+    formula_name.addEventListener('input', alterDisplay);
+    document.getElementById('operand1_sensor_select').addEventListener('change', alterDisplay);
+    document.getElementById('operand2_sensor_select').addEventListener('change', alterDisplay);
+    document.getElementById('operand1_constant_input').addEventListener('input', alterDisplay);
+    document.getElementById('operand2_constant_input').addEventListener('input', alterDisplay);
+
+    document.getElementById('button_save').addEventListener('click', () => {
+        // Validate inputs
+        if (formula_name.value.trim() === "") {
+            alert("Please enter a formula name.");
+            return;
+        }
+        if (operand1_selector.value == "NULL" || operand2_selector.value == "NULL") {
+            alert("Please select both data sources.");
+            return;
+        }
+        if (operand1_selector.value == "sensors" && document.getElementById('operand1_sensor_select').value == "NULL") {
+            alert("Please select a sensor for Data Source 1.");
+            return;
+        }
+        if (operand2_selector.value == "sensors" && document.getElementById('operand2_sensor_select').value == "NULL") {
+            alert("Please select a sensor for Data Source 2.");
+            return;
+        }
+        if (operand1_selector.value == "constant" && document.getElementById('operand1_constant_input').value.trim() === "") {
+            alert("Please enter a constant value for Data Source 1.");
+            return;
+        }
+        if (operand2_selector.value == "constant" && document.getElementById('operand2_constant_input').value.trim() === "") {
+            alert("Please enter a constant value for Data Source 2.");
+            return;
+        }
+
+        payload = {
+            "tag_name": document.getElementById('formula_name').value,
+            "phy": {
+                "channel": "MATH",
+            },
+            "operator": document.getElementById('operator').value,
+            "operand1": {
+                "type": document.getElementById('operand1').value,
+                "value": document.getElementById('operand1').value == "sensors" ? document.getElementById('operand1_sensor_select').value : document.getElementById('operand1_constant_input').value
+            },
+            "operand2": {
+                "type": document.getElementById('operand2').value,
+                "value": document.getElementById('operand2').value == "sensors" ? document.getElementById('operand2_sensor_select').value : document.getElementById('operand2_constant_input').value
+            }
+        };
+
+        console.log("Payload to send:", payload);
+
+        // POST to API
+        fetch(base_url + '/push-sensor', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(res => res.ok ? res.json() : Promise.reject("Failed to save sensor"))
+            .then(data => alert("Sensor saved successfully!"))
+            .catch(err => alert("Error: " + err));
+    });
+</script>
+
+
+
+</html>

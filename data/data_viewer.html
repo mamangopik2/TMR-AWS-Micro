@@ -58,6 +58,20 @@
                 <!-- Filled dynamically -->
             </tbody>
         </table>
+
+        <h2>Virtual Channel</h2>
+        <table id="mathTable">
+            <thead>
+                <tr>
+                    <th>Variable Tag</th>
+                    <th>Value</th>
+                    <th>Edit</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Filled dynamically -->
+            </tbody>
+        </table>
     </div>
 
     <script src="beacon.js"></script>
@@ -65,6 +79,7 @@
         const base_url = window.location.origin;
         const urlRead = base_url + '/read-sensor';
         const sensorTableBody = document.getElementById("sensorTable").querySelector("tbody");
+        const mathTableBody = document.getElementById("mathTable").querySelector("tbody");
 
         function fetchWithTimeout(resource, options = {}) {
             const { timeout = 1000 } = options;
@@ -82,16 +97,31 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log(data);
+                    mathTableBody.innerHTML = "";
                     sensorTableBody.innerHTML = "";
                     data.sensors.forEach((sensor, index) => {
                         const row = document.createElement("tr");
-                        row.innerHTML = `
-                            <td>${sensor.tag_name}</td>
-                            <td>${sensor.value.unscaled} ${sensor.raw_unit}</td>
-                            <td>${sensor.value.scaled} ${sensor.eng_unit}</td>
-                            <td><a target="_blank" href="${base_url}/edit-sensor.html?index=${index}">Edit &#9998;</a></td>
-                        `;
-                        sensorTableBody.appendChild(row);
+                        if (sensor.phy != undefined) {
+                            console.log(sensor.phy)
+                            if (sensor.phy.channel == "MATH") {
+                                mathTableBody.innerHTML += "";
+                                row.innerHTML = `
+                                <td>${sensor.tag_name}</td>
+                                <td>${sensor.value.scaled}</td>
+                                <td><a target="_blank" href="${base_url}/edit-sensor.html?index=${index}">Edit &#9998;</a></td>
+                                `;
+                                mathTableBody.appendChild(row);
+                            }
+                        } else {
+                            sensorTableBody.innerHTML += "";
+                            row.innerHTML = `
+                                <td>${sensor.tag_name}</td>
+                                <td>${sensor.value.unscaled} ${sensor.raw_unit}</td>
+                                <td>${sensor.value.scaled} ${sensor.eng_unit}</td>
+                                <td><a target="_blank" href="${base_url}/edit-sensor.html?index=${index}">Edit &#9998;</a></td>
+                            `;
+                            sensorTableBody.appendChild(row);
+                        }
                     });
                 })
                 .catch(error => {

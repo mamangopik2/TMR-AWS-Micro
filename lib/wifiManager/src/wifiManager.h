@@ -98,6 +98,8 @@ public:
     void handleReadDeviceInfo();
     void handleLogFileDownload();
     void handleGetPassword();
+    void handleActiveSensors();
+    void handleMathFunctions();
 
     unsigned long getBeaconTime();
 

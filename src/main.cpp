@@ -20,6 +20,17 @@ RTC_DATA_ATTR unsigned long ULPDayTimerCounter = 0;      // store data on RTC me
 RTC_DATA_ATTR unsigned long ULPMonthTimerCounter = 0;    // store data on RTC memory
 RTC_DATA_ATTR unsigned long ULPYearTimerCounter = 0;     // store data on RTC memory
 
+RTC_DATA_ATTR uint32_t tcnt0 = 0; // second
+RTC_DATA_ATTR uint32_t tcnt1 = 0; // minute
+RTC_DATA_ATTR uint32_t tcnt2 = 0; // hour
+RTC_DATA_ATTR uint32_t tcnt3 = 0; // day
+
+byte minRstFlag = 0;
+byte hourRstFlag = 0;
+byte dayRstFlag = 0;
+
+uint32_t lastTimeLookup = 0;
+
 String sensorDataPacket;
 uint8_t secondCounter = 0;
 uint8_t runUpTimeMinute = 2;
@@ -71,6 +82,9 @@ String getDeviceInfo()
   StaticJsonDocument<128> info;
   info["battery_voltage"] = String(((analogRead(VBAT_SENSE_PIN) * (3.3 / 4095.0)) * 2) + 0.29, 2); // read the battery voltage
   info["sn"] = "SN12345678";
+  char bufferSerialOut[16];
+  sprintf(bufferSerialOut, "%d:%d%d:%d%d:%d%d", tcnt3, tcnt2 / 10, tcnt2 % 10, tcnt1 / 10, tcnt1 % 10, tcnt0 / 10, tcnt0 % 10);
+  info["up_time"] = bufferSerialOut;
   info["site"] = sensorConfigurator._siteName;
   info["plant"] = sensorConfigurator._plantName;
   info["device_name"] = sensorConfigurator._deviceName;
@@ -192,42 +206,14 @@ void setup()
 void loop() // this loop runs on Core1 by default
 {
 testTimer:
-  unsigned long lookupTimer;
-  currentULPUnixTimestamp = sensorConfigurator.getUnixTime();                                                              // set the RTC unix time to the current unix time
-  lookupTimer = ULPminuteTimerCounter;                                                                                     // get the current unix time
-  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
-  ULPminuteTimerCounter = lookupTimer;                                                                                     // update the minute timer counter
+  systemScheduler.registerCount = &sensorConfigurator.modbusRegistersCount; // set the register count to the scheduler
+  systemScheduler.registers = sensorConfigurator.modbusHREGS;               // set the
+  currentULPUnixTimestamp = sensorConfigurator.getUnixTime();               // set the RTC unix time to the current unix time
 
-  lookupTimer = ULPHourTimerCounter;                                                                                       // get the current hour timer
-  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
-  ULPHourTimerCounter = lookupTimer;                                                                                       // update the hour timer counter
-
-  lookupTimer = ULPDayTimerCounter;                                                                                        // get the current day timer
-  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
-  ULPDayTimerCounter = lookupTimer;                                                                                        // update the day timer counter
-
-  lookupTimer = ULPMonthTimerCounter;                                                                                      // get the current month timer
-  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
-  ULPMonthTimerCounter = lookupTimer;                                                                                      // update the month timer counter
-
-  lookupTimer = ULPYearTimerCounter;                                                                                       // get the current year timer
-  systemScheduler.checkRegisterSchedule(mbInstrument._modbusInstance, currentULPUnixTimestamp, lookupTimer, &lookupTimer); // check the register schedule
-  ULPYearTimerCounter = lookupTimer;                                                                                       // update the year timer counter
-
-  Serial.print("Current Unix Time: ");
-  Serial.println(currentULPUnixTimestamp);
-  Serial.print("Minute Timer: ");
-  Serial.println(ULPminuteTimerCounter);
-  Serial.print("DeltaMinuteTimer: ");
-  Serial.println(currentULPUnixTimestamp - ULPminuteTimerCounter);
-
-  Serial.print("Hour Timer: ");
-  Serial.println(ULPHourTimerCounter);
-  Serial.print("DeltaHourTimer: ");
-  Serial.println(currentULPUnixTimestamp - ULPHourTimerCounter);
-  Serial.print("Day Timer: ");
-  Serial.println(ULPDayTimerCounter);
-  Serial.print("DeltaDayTimer: ");
+  systemScheduler.timerCounter(currentULPUnixTimestamp, &lastTimeLookup, &tcnt0, &tcnt1, &tcnt2, &tcnt3, &minRstFlag, &hourRstFlag, &dayRstFlag);
+  systemScheduler.resetRegisterByFlag(mbInstrument._modbusInstance, &minRstFlag, sensorConfigurator.modbusRegistersCount);
+  systemScheduler.resetRegisterByFlag(mbInstrument._modbusInstance, &hourRstFlag, sensorConfigurator.modbusRegistersCount);
+  systemScheduler.resetRegisterByFlag(mbInstrument._modbusInstance, &dayRstFlag, sensorConfigurator.modbusRegistersCount);
 
 unlicensed:
   sensorDataPacket = sensorConfigurator.getSensorsValue(instrumentManager, mbInstrument); // sensor data packet which will be send to the cloud

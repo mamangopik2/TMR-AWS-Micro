@@ -1,5 +1,5 @@
 #define SDMMC // using official TMR A32 board
-// #define SDSPI //using SPI SD card Module
+// #define SDSPI // using SPI SD card Module
 
 #if !defined(SDSTORAGE_H)
 #define SDSTORAGE_H

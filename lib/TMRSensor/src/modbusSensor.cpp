@@ -17,19 +17,25 @@ void modbusSensor::test()
 
 uint16_t modbusSensor::readUnsignedWord(uint8_t slaveID, uint16_t regType, uint16_t regAddr)
 {
+    Serial.print("==========register type: ");
+    Serial.print(regType);
+    Serial.print("===================================\n");
     uint16_t reg = 0;
     if (!_modbusInstance->slave())
     {
         switch (regType)
         {
         case HREG:
+            Serial.print("HREG\n");
             _modbusInstance->readHreg(slaveID, regAddr, &reg);
             break;
         case IREG:
+            Serial.print("IREG\n");
             _modbusInstance->readIreg(slaveID, regAddr, &reg);
             break;
 
         default:
+            Serial.print("Default HREG\n");
             _modbusInstance->readHreg(slaveID, regAddr, &reg);
         }
     }

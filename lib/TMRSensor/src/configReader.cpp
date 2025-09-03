@@ -4,8 +4,28 @@
 #include "time.h"
 RTC_DS1307 timeRTC;
 
+float configReader::getSensorValue(JsonArray sensors, const char *tag)
+{
+    for (JsonObject sensor : sensors)
+    {
+        if (sensor["tag_name"] == tag)
+        {
+            float value = sensor["value"]["scaled"];
+            // Serial.print("========selected to Math:");
+            // Serial.print(tag);
+            // Serial.println("===========");
+            // Serial.print("========value:");
+            // Serial.print(value);
+            // Serial.println("===========");
+            return value;
+        }
+    }
+    return 0;
+}
+
 String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &mbInterface)
 {
+    uint8_t regType;
     uint16_t byteCounterBuffer = 0;
     String sensorsData[50] = {};
     uint8_t sensorsIndex = 0;
@@ -31,183 +51,236 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         const char *tag = sensor["tag_name"];
         const char *phy = sensor["phy"]["channel"];
 
-        // Calibration
-        const char *calibration_mode = sensor["calibration"]["calibration_mode"];
-        const char *offset_val = sensor["calibration"]["offset"];
-        const char *readout_min = sensor["calibration"]["readout_min"];
-        const char *readout_max = sensor["calibration"]["readout_max"];
-        const char *actual_min = sensor["calibration"]["actual_min"];
-        const char *actual_max = sensor["calibration"]["actual_max"];
-        const char *k_factor = sensor["calibration"]["k_factor"];
-        const char *sensitivity = sensor["calibration"]["sensitivity"];
-        // Modbus
-        const char *device_id = sensor["modbus"]["modbus_device_id"];
-        const char *reg = sensor["modbus"]["modbus_reg"];
-        const char *offset = sensor["modbus"]["modbus_offset"];
-        const char *reg_type = sensor["modbus"]["modbus_reg_type"];
-        const char *dtype = sensor["modbus"]["modbus_dtype"];
-        const char *hardware_channel = sensor["modbus"]["hardware_channel"];
-        const char *mbBigEndian = sensor["modbus"]["big_endian"];
-        const char *resetTime = sensor["modbus"]["modbus_reset_routine"];
-
-        // Digital input
-        const char *di_ch = sensor["digital"]["di_ch"];
-
-        // Analog input
-        const char *ai_ch = sensor["analog"]["ai_ch"];
-
-        const char *EU = sensor["engineering_unit"];
-        const char *RU = sensor["raw_unit"];
-
-        uint16_t dataType;
-        if (dtype == "UINT16")
-            dataType = MODBUS_UINT16;
-        else if (dtype == "INT16")
-            dataType = MODBUS_INT16;
-        else if (dtype == "UINT32")
-            dataType = MODBUS_UINT32;
-        else if (dtype == "INT32")
-            dataType = MODBUS_INT32;
-        else if (dtype == "FLOAT")
-            dataType = MODBUS_FLOAT;
-        else if (dtype == "DOUBLE")
-            dataType = MODBUS_DOUBLE;
-        else
-            dataType = MODBUS_UINT16;
-
-        uint8_t regType;
-        if (reg_type == "HREG")
-            regType = HREG;
-        else if (reg_type == "IREG")
-            regType = IREG;
-        else if (reg_type == "COIL")
-            regType = COIL;
-        else
-            regType = HREG;
-
-        uint8_t bigEndian;
-        if (mbBigEndian == "TRUE")
-            bigEndian = true;
-        else
-            bigEndian = false;
-
-        // debuger.debug(String(phy));
-        if (String(phy) == "modbus")
+        if (String(phy) != "MATH")
         {
-            if (String(calibration_mode) == "1") // kFactor
-            {
-                // //Serial.println("with KF");
-                sensorData = sensManager.readModbusKF(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor), atof(offset_val));
-            }
-            else if (String(calibration_mode) == "2") // sensitivity
-            {
-                // //Serial.println("with sensitivity");
-                sensorData = sensManager.readModbus(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(sensitivity), atof(offset_val));
-            }
-            else if (String(calibration_mode) == "3") // two-points callibration
-            {
-                // //Serial.println("with two-points callibration");
-                sensorData = sensManager.readModbus(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
-            }
+            // Calibration
+            const char *calibration_mode = sensor["calibration"]["calibration_mode"];
+            const char *offset_val = sensor["calibration"]["offset"];
+            const char *readout_min = sensor["calibration"]["readout_min"];
+            const char *readout_max = sensor["calibration"]["readout_max"];
+            const char *actual_min = sensor["calibration"]["actual_min"];
+            const char *actual_max = sensor["calibration"]["actual_max"];
+            const char *k_factor = sensor["calibration"]["k_factor"];
+            const char *sensitivity = sensor["calibration"]["sensitivity"];
+            // Modbus
+            const char *device_id = sensor["modbus"]["modbus_device_id"];
+            const char *reg = sensor["modbus"]["modbus_reg"];
+            const char *offset = sensor["modbus"]["modbus_offset"];
+            const char *reg_type = sensor["modbus"]["modbus_reg_type"];
+            const char *dtype = sensor["modbus"]["modbus_dtype"];
+            const char *hardware_channel = sensor["modbus"]["hardware_channel"];
+            const char *mbBigEndian = sensor["modbus"]["big_endian"];
+            const char *resetTime = sensor["modbus"]["modbus_reset_routine"];
+
+            // Digital input
+            const char *di_ch = sensor["digital"]["di_ch"];
+
+            // Analog input
+            const char *ai_ch = sensor["analog"]["ai_ch"];
+
+            const char *EU = sensor["engineering_unit"];
+            const char *RU = sensor["raw_unit"];
+
+            uint16_t dataType;
+            if (dtype == "UINT16")
+                dataType = MODBUS_UINT16;
+            else if (dtype == "INT16")
+                dataType = MODBUS_INT16;
+            else if (dtype == "UINT32")
+                dataType = MODBUS_UINT32;
+            else if (dtype == "INT32")
+                dataType = MODBUS_INT32;
+            else if (dtype == "FLOAT")
+                dataType = MODBUS_FLOAT;
+            else if (dtype == "DOUBLE")
+                dataType = MODBUS_DOUBLE;
             else
-            {
-                sensorData = sensManager.readModbus(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor), atof(offset_val));
-            }
+                dataType = MODBUS_UINT16;
+
+            Serial.print("======from config reader: data type: ");
+            Serial.print(dataType);
+            Serial.print("======\n");
+            Serial.print("======from config reader: register type: ");
+            Serial.print(reg_type);
+            Serial.print("======\n");
+
             if (String(reg_type) == "HREG")
             {
-                modbusHREGS[byteCounterBuffer][0] = atoi(device_id);
-                modbusHREGS[byteCounterBuffer][1] = atoi(offset);
-                modbusHREGS[byteCounterBuffer][2] = atoi(reg);
+                regType = HREG;
+            }
+            if (String(reg_type) == "IREG")
+            {
+                regType = IREG;
+            }
+            if (String(reg_type) == "COIL")
+            {
+                regType = COIL;
+            }
+            if (String(reg_type) == "DISCRETE")
+            {
+                regType = COIL;
+            }
 
-                if (String(resetTime) == "MINUTELY")
-                    modbusHREGS[byteCounterBuffer][3] = RST_MINUTELY;
-                else if (String(resetTime) == "HOURLY")
-                    modbusHREGS[byteCounterBuffer][3] = RST_HOURLY;
-                else if (String(resetTime) == "DAILY")
-                    modbusHREGS[byteCounterBuffer][3] = RST_DAILY;
-                else if (String(resetTime) == "MONTHLY")
-                    modbusHREGS[byteCounterBuffer][3] = RST_MONTHLY;
-                else if (String(resetTime) == "YEARLY")
-                    modbusHREGS[byteCounterBuffer][3] = RST_YEARLY;
-                else
-                    modbusHREGS[byteCounterBuffer][3] = RST_NONE; // no reset routine
-                byteCounterBuffer++;
-            }
-        }
-        if (String(phy) == "analog")
-        {
-            if (String(calibration_mode) == "1") // kFactor
-            {
-                try
-                {
-                    sensorData = sensManager.readAnalog_KF(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor), atof(offset_val));
-                }
-                catch (const std::exception &e)
-                {
-                    sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
-                                                                                    "\"value\":{\"unscaled\":" +
-                                 0 +
-                                 ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
-                }
+            Serial.print("======actual : register: ");
+            Serial.print(regType);
+            Serial.print("======\n");
 
-                // //Serial.println("with KF");
-            }
-            else if (String(calibration_mode) == "2") // sensitivity
-            {
-                try
-                {
-                    sensorData = sensManager.readAnalog_S(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(sensitivity), atof(offset_val));
-                }
-                catch (const std::exception &e)
-                {
-                    sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
-                                                                                    "\"value\":{\"unscaled\":" +
-                                 0 +
-                                 ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
-                }
-            }
-            else if (String(calibration_mode) == "3") // two-points callibration
-            {
-                // //Serial.println("with two-points callibration");
-                try
-                {
-                    sensorData = sensManager.readAnalog_MAP(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
-                }
-                catch (const std::exception &e)
-                {
-                    sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
-                                                                                    "\"value\":{\"unscaled\":" +
-                                 0 +
-                                 ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
-                }
-            }
+            uint8_t bigEndian;
+            if (mbBigEndian == "TRUE")
+                bigEndian = true;
             else
+                bigEndian = false;
+
+            Serial.print("physical:");
+            Serial.println(phy);
+
+            // debuger.debug(String(phy));
+            if (String(phy) == "modbus")
             {
-                try
+                if (String(calibration_mode) == "1") // kFactor
                 {
-                    sensorData = sensManager.readAnalog_KF(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor), atof(offset_val));
+                    // //Serial.println("with KF");
+                    sensorData = sensManager.readModbusKF(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor), atof(offset_val));
                 }
-                catch (const std::exception &e)
+                else if (String(calibration_mode) == "2") // sensitivity
                 {
-                    sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
-                                                                                    "\"value\":{\"unscaled\":" +
-                                 0 +
-                                 ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+                    // //Serial.println("with sensitivity");
+                    sensorData = sensManager.readModbus(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(sensitivity), atof(offset_val));
+                }
+                else if (String(calibration_mode) == "3") // two-points callibration
+                {
+                    // //Serial.println("with two-points callibration");
+                    sensorData = sensManager.readModbus(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
+                }
+                else
+                {
+                    sensorData = sensManager.readModbus(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor), atof(offset_val));
+                }
+                if (regType == HREG)
+                {
+                    modbusHREGS[byteCounterBuffer][0] = atoi(device_id);
+                    modbusHREGS[byteCounterBuffer][1] = atoi(offset);
+                    modbusHREGS[byteCounterBuffer][2] = atoi(reg);
+
+                    if (String(resetTime) == "MINUTELY")
+                        modbusHREGS[byteCounterBuffer][3] = RST_MINUTELY;
+                    else if (String(resetTime) == "HOURLY")
+                        modbusHREGS[byteCounterBuffer][3] = RST_HOURLY;
+                    else if (String(resetTime) == "DAILY")
+                        modbusHREGS[byteCounterBuffer][3] = RST_DAILY;
+                    else if (String(resetTime) == "MONTHLY")
+                        modbusHREGS[byteCounterBuffer][3] = RST_MONTHLY;
+                    else if (String(resetTime) == "YEARLY")
+                        modbusHREGS[byteCounterBuffer][3] = RST_YEARLY;
+                    else
+                        modbusHREGS[byteCounterBuffer][3] = RST_NONE; // no reset routine
+                    byteCounterBuffer++;
                 }
             }
+            if (String(phy) == "analog")
+            {
+                if (String(calibration_mode) == "1") // kFactor
+                {
+                    try
+                    {
+                        sensorData = sensManager.readAnalog_KF(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor), atof(offset_val));
+                    }
+                    catch (const std::exception &e)
+                    {
+                        sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
+                                                                                        "\"value\":{\"unscaled\":" +
+                                     0 +
+                                     ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+                    }
+
+                    // //Serial.println("with KF");
+                }
+                else if (String(calibration_mode) == "2") // sensitivity
+                {
+                    try
+                    {
+                        sensorData = sensManager.readAnalog_S(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(sensitivity), atof(offset_val));
+                    }
+                    catch (const std::exception &e)
+                    {
+                        sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
+                                                                                        "\"value\":{\"unscaled\":" +
+                                     0 +
+                                     ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+                    }
+                }
+                else if (String(calibration_mode) == "3") // two-points callibration
+                {
+                    // //Serial.println("with two-points callibration");
+                    try
+                    {
+                        sensorData = sensManager.readAnalog_MAP(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
+                    }
+                    catch (const std::exception &e)
+                    {
+                        sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
+                                                                                        "\"value\":{\"unscaled\":" +
+                                     0 +
+                                     ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        sensorData = sensManager.readAnalog_KF(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(k_factor), atof(offset_val));
+                    }
+                    catch (const std::exception &e)
+                    {
+                        sensorData = "{\"tag_name\":\"" + getSiteInfo() + String(tag) + "\","
+                                                                                        "\"value\":{\"unscaled\":" +
+                                     0 +
+                                     ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+                    }
+                }
+            }
+            if (String(phy) == "digital")
+            {
+                sensorData = sensManager.readDigital(String(EU), String(RU), getSiteInfo() + String(tag), atoi(di_ch));
+            }
         }
-        if (String(phy) == "digital")
+        else
         {
-            sensorData = sensManager.readDigital(String(EU), String(RU), getSiteInfo() + String(tag), atoi(di_ch));
+
+            const char *operand1_type = sensor["operand1"]["type"];
+            const char *operand1_val = sensor["operand1"]["value"];
+            const char *operand2_type = sensor["operand2"]["type"];
+            const char *operand2_val = sensor["operand2"]["value"];
+            const char *operation = sensor["operator"];
+
+            sensorData = "{";
+            sensorData += "\"tag_name\":\"" + String(tag) + "\",";
+            sensorData += "\"phy\":{\"channel\":\"MATH\"},";
+            sensorData += "\"operator\":\"" + String(operation) + "\",";
+            sensorData += "\"operand1\":{";
+            sensorData += "\"type\":\"" + String(operand1_type) + "\",";
+            sensorData += "\"value\":\"" + String(operand1_val) + "\"},";
+            sensorData += "\"operand2\":{";
+            sensorData += "\"type\":\"" + String(operand2_type) + "\",";
+            sensorData += "\"value\":\"" + String(operand2_val) + "\"},";
+            sensorData += "\"value\":{";
+            sensorData += "\"scaled\":0,";
+            sensorData += "\"unscaled\":0}";
+
+            sensorData += "}";
+
+            // Serial.println("=========MATHHHHH=========");
+            // Serial.println(sensorData);
+            // Serial.println("=========MATHHHHH=========");
         }
+
+        // Serial.print("============Sensor Data============\n");
+        // Serial.println(sensorData);
+        // Serial.println("===================================\n");
         sensorsData[sensorsIndex] = sensorData;
         sensorsIndex++;
-        // Serial.print("index: ");
-        // Serial.print(sensorsIndex);
-        // Serial.print(" data: ");
-        // Serial.println(sensorData);
-        this->modbusRegistersCount = byteCounterBuffer; // update the modbus registers count
     }
+    this->modbusRegistersCount = byteCounterBuffer; // update the modbus registers count
 
     // Create JSON document
     String jsonOutput;
@@ -223,6 +296,65 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
     jsonOutput += "]}";
     doc.clear();
     // sensorArray.clear();
+    DynamicJsonDocument jsonBuffer(2048);
+    DeserializationError err = deserializeJson(jsonBuffer, jsonOutput);
+
+    if (err)
+    {
+        Serial.println("JSON parse failed!");
+    }
+
+    JsonArray sensors = jsonBuffer["sensors"];
+
+    for (JsonObject sensor : sensors)
+    {
+        // only process MATH channels
+        if (sensor.containsKey("phy") && sensor["phy"]["channel"] == "MATH")
+        {
+            const char *op = sensor["operator"];
+            JsonObject op1 = sensor["operand1"];
+            JsonObject op2 = sensor["operand2"];
+
+            float val1 = 0, val2 = 0;
+
+            if (op1["type"] == "sensors")
+            {
+                val1 = getSensorValue(sensors, op1["value"]);
+            }
+            else if (op1["type"] == "constant")
+            {
+                val1 = atof(op1["value"]);
+            }
+
+            if (op2["type"] == "sensors")
+            {
+                val2 = getSensorValue(sensors, op2["value"]);
+            }
+            else if (op2["type"] == "constant")
+            {
+                val2 = atof(op2["value"]);
+            }
+
+            float result = 0;
+            if (strcmp(op, "+") == 0)
+                result = val1 + val2;
+            else if (strcmp(op, "-") == 0)
+                result = val1 - val2;
+            else if (strcmp(op, "*") == 0)
+                result = val1 * val2;
+            else if (strcmp(op, "/") == 0 && val2 != 0)
+                result = val1 / val2;
+
+            // Save back to sensor
+            sensor["value"]["scaled"] = result;
+            sensor["value"]["unscaled"] = result;
+
+            // Serial.printf("Updated %s = %.2f\n", (const char *)sensor["tag_name"], result);
+        }
+    }
+    serializeJson(jsonBuffer, jsonOutput);
+    jsonBuffer.clear();
+
     return jsonOutput;
 }
 void configReader::loadFile()
