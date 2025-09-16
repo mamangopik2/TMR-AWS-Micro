@@ -1,7 +1,5 @@
 #include "TMRSensor.h"
 
-#include <RTClib.h>
-#include "time.h"
 RTC_DS1307 timeRTC;
 
 float configReader::getSensorValue(JsonArray sensors, const char *tag)
@@ -97,12 +95,12 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             else
                 dataType = MODBUS_UINT16;
 
-            Serial.print("======from config reader: data type: ");
-            Serial.print(dataType);
-            Serial.print("======\n");
-            Serial.print("======from config reader: register type: ");
-            Serial.print(reg_type);
-            Serial.print("======\n");
+            // Serial.print("======from config reader: data type: ");
+            // Serial.print(dataType);
+            // Serial.print("======\n");
+            // Serial.print("======from config reader: register type: ");
+            // Serial.print(reg_type);
+            // Serial.print("======\n");
 
             if (String(reg_type) == "HREG")
             {
@@ -121,9 +119,9 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
                 regType = COIL;
             }
 
-            Serial.print("======actual : register: ");
-            Serial.print(regType);
-            Serial.print("======\n");
+            // Serial.print("======actual : register: ");
+            // Serial.print(regType);
+            // Serial.print("======\n");
 
             uint8_t bigEndian;
             if (mbBigEndian == "TRUE")
@@ -131,8 +129,8 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             else
                 bigEndian = false;
 
-            Serial.print("physical:");
-            Serial.println(phy);
+            // Serial.print("physical:");
+            // Serial.println(phy);
 
             // debuger.debug(String(phy));
             if (String(phy) == "modbus")
@@ -639,7 +637,101 @@ void configReader::initRTC()
     {
         // Serial.println("RTC is NOT running!");
     }
+    rtcDevice = &timeRTC;
 }
+
+uint16_t configReader::getSecond()
+{
+    if (timeRTC.isrunning())
+    {
+
+        DateTime now = timeRTC.now();
+        return now.second();
+    }
+    else
+    {
+        return 0;
+    }
+}
+uint16_t configReader::getMinute()
+{
+    if (timeRTC.isrunning())
+    {
+
+        DateTime now = timeRTC.now();
+        return now.minute();
+    }
+    else
+    {
+        return 0;
+    }
+}
+uint16_t configReader::getHour()
+{
+    if (timeRTC.isrunning())
+    {
+
+        DateTime now = timeRTC.now();
+        return now.hour();
+    }
+    else
+    {
+        return 0;
+    }
+}
+uint16_t configReader::getDay()
+{
+    if (timeRTC.isrunning())
+    {
+
+        DateTime now = timeRTC.now();
+        return now.day();
+    }
+    else
+    {
+        return 0;
+    }
+}
+uint16_t configReader::dayOfWeek()
+{
+    if (timeRTC.isrunning())
+    {
+
+        DateTime now = timeRTC.now();
+        return now.dayOfTheWeek();
+    }
+    else
+    {
+        return 0;
+    }
+}
+uint16_t configReader::getMonth()
+{
+    if (timeRTC.isrunning())
+    {
+
+        DateTime now = timeRTC.now();
+        return now.month();
+    }
+    else
+    {
+        return 0;
+    }
+}
+uint16_t configReader::getYear()
+{
+    if (timeRTC.isrunning())
+    {
+
+        DateTime now = timeRTC.now();
+        return now.year();
+    }
+    else
+    {
+        return 0;
+    }
+}
+
 String configReader::getISOTimeNTP()
 {
     struct tm timeinfo;

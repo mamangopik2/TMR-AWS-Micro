@@ -138,40 +138,41 @@ void scheduler::resetRegisterByFlag(ModbusRTU *_modbusInstance, byte *flag, uint
     Serial.println(nufOfreg);
     for (uint16_t i = 0; i < nufOfreg; i++)
     {
-        Serial.print("Register Lists: ");
-        Serial.print("Slave ID: ");
-        Serial.print(registers[i][0]);
-        Serial.print(" Reg Offset: ");
-        Serial.print(registers[i][1]);
-        Serial.print(" Reg Addr: ");
-        Serial.print(registers[i][2]);
-        Serial.print(" Reset Routine: ");
+        // Serial.print("Register Lists: ");
+        // Serial.print("Slave ID: ");
+        // Serial.print(registers[i][0]);
+        // Serial.print(" Reg Offset: ");
+        // Serial.print(registers[i][1]);
+        // Serial.print(" Reg Addr: ");
+        // Serial.print(registers[i][2]);
+        // Serial.print(" Reset Routine: ");
 
-        if (registers[i][3] == RST_NONE)
-        {
-            Serial.println("No Reset Routine");
-            continue; // skip if no reset routine
-        }
-        else if (registers[i][3] == RST_MINUTELY)
-        {
-            Serial.println("Minutely Reset Routine");
-        }
-        else if (registers[i][3] == RST_HOURLY)
-        {
-            Serial.println("Hourly Reset Routine");
-        }
-        else if (registers[i][3] == RST_DAILY)
-        {
-            Serial.println("Daily Reset Routine");
-        }
-        else if (registers[i][3] == RST_MONTHLY)
-        {
-            Serial.println("Monthly Reset Routine");
-        }
-        else if (registers[i][3] == RST_YEARLY)
-        {
-            Serial.println("Yearly Reset Routine");
-        }
+        // if (registers[i][3] == RST_NONE)
+        // {
+        //     Serial.println("No Reset Routine");
+        //     continue; // skip if no reset routine
+        // }
+        // else if (registers[i][3] == RST_MINUTELY)
+        // {
+        //     Serial.println("Minutely Reset Routine");
+        // }
+        // else if (registers[i][3] == RST_HOURLY)
+        // {
+        //     Serial.println("Hourly Reset Routine");
+        // }
+        // else if (registers[i][3] == RST_DAILY)
+        // {
+        //     Serial.println("Daily Reset Routine");
+        // }
+        // else if (registers[i][3] == RST_MONTHLY)
+        // {
+        //     Serial.println("Monthly Reset Routine");
+        // }
+        // else if (registers[i][3] == RST_YEARLY)
+        // {
+        //     Serial.println("Yearly Reset Routine");
+        // }
+
         if (*flag == 1)
         {
             resetRegisterScheduler(_modbusInstance, registers[i][0], registers[i][1], registers[i][2]);
@@ -180,39 +181,21 @@ void scheduler::resetRegisterByFlag(ModbusRTU *_modbusInstance, byte *flag, uint
     *flag = 0;
 }
 
-void scheduler::timerCounter(uint32_t timestamp, uint32_t *lastTimestamp, uint32_t *sec, uint32_t *min, uint32_t *hour, uint32_t *day, byte *minFlag, byte *hourFlag, byte *dayFlag)
+void scheduler::timeComparison(uint16_t *tCur, uint16_t *tLast, byte *flag)
 {
-    if (*lastTimestamp <= 0)
+    if (*tLast == 0)
     {
-        *lastTimestamp = timestamp;
+        *tLast = *tCur;
     }
-    uint32_t skipTime = timestamp - *lastTimestamp;
-
-    *sec += skipTime;
-    if (*sec >= 60)
+    Serial.print("Current:");
+    Serial.print(*tCur);
+    Serial.print(" Last:");
+    Serial.println(*tLast);
+    if (*tCur < *tLast)
     {
-        *sec = 0;
-        *min = *min + 1;
-        *minFlag = 1;
+        *flag = 1;
     }
-    if (*min >= 60)
-    {
-        *min = 0;
-        *hour = *hour + 1;
-        *hourFlag = 1;
-    }
-    if (*hour >= 24)
-    {
-        *hour = 0;
-        *day = *day + 1;
-        *dayFlag = 1;
-    }
-
-    *lastTimestamp = timestamp;
-
-    char bufferSerialOut[16];
-    sprintf(bufferSerialOut, "%d:%d%d:%d%d:%d%d", *day, *hour / 10, *hour % 10, *min / 10, *min % 10, *sec / 10, *sec % 10);
-    Serial.println(bufferSerialOut);
+    *tLast = *tCur;
 }
 
 void scheduler::deepSleep(unsigned long durationMinute)

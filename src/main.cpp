@@ -20,14 +20,15 @@ RTC_DATA_ATTR unsigned long ULPDayTimerCounter = 0;      // store data on RTC me
 RTC_DATA_ATTR unsigned long ULPMonthTimerCounter = 0;    // store data on RTC memory
 RTC_DATA_ATTR unsigned long ULPYearTimerCounter = 0;     // store data on RTC memory
 
-RTC_DATA_ATTR uint32_t tcnt0 = 0; // second
-RTC_DATA_ATTR uint32_t tcnt1 = 0; // minute
-RTC_DATA_ATTR uint32_t tcnt2 = 0; // hour
-RTC_DATA_ATTR uint32_t tcnt3 = 0; // day
+uint16_t tcnt0 = 0; // second
+uint16_t tcnt1 = 0; // minute
+uint16_t tcnt2 = 0; // hour
+uint16_t tcnt3 = 0; // day
 
 byte minRstFlag = 0;
 byte hourRstFlag = 0;
 byte dayRstFlag = 0;
+byte monthRstFlag = 0;
 
 uint32_t lastTimeLookup = 0;
 
@@ -81,7 +82,7 @@ String getDeviceInfo()
 {
   StaticJsonDocument<128> info;
   info["battery_voltage"] = String(((analogRead(VBAT_SENSE_PIN) * (3.3 / 4095.0)) * 2) + 0.29, 2); // read the battery voltage
-  info["sn"] = "SN12345678";
+  info["sn"] = "TMR-A32/2025/1/0915/ECA8";
   char bufferSerialOut[16];
   sprintf(bufferSerialOut, "%d:%d%d:%d%d:%d%d", tcnt3, tcnt2 / 10, tcnt2 % 10, tcnt1 / 10, tcnt1 % 10, tcnt0 / 10, tcnt0 % 10);
   info["up_time"] = bufferSerialOut;
@@ -117,7 +118,7 @@ void setup()
   systemSerial.aiRawData = instrumentManager.analogReadData; // set the sensor manager to the serial tool
   systemSerial.deviceInformation = &deviceInfo;              // set the device information to the serial tool
   systemSerial.license = &licensing;                         // set the license manager to the serial tool
-  systemSerial.startThread(4096, 1, 1);
+  // systemSerial.startThread(4096, 1, 1);
 
   xTaskCreatePinnedToCore(clock, "time scheduler", 1024, NULL, 6, &timeTask, 1);
 
@@ -203,6 +204,23 @@ void setup()
     Serial.println("Done.\n");
 }
 
+void checkReset(uint16_t *tCur, uint16_t *tLast, byte *flag)
+{
+  if (*tLast == 0)
+  {
+    *tLast = *tCur;
+  }
+  Serial.print("Current:");
+  Serial.print(*tCur);
+  Serial.print(" Last:");
+  Serial.println(*tLast);
+  if (*tCur < *tLast)
+  {
+    *flag = 1;
+  }
+  *tLast = *tCur;
+}
+
 void loop() // this loop runs on Core1 by default
 {
 testTimer:
@@ -210,10 +228,24 @@ testTimer:
   systemScheduler.registers = sensorConfigurator.modbusHREGS;               // set the
   currentULPUnixTimestamp = sensorConfigurator.getUnixTime();               // set the RTC unix time to the current unix time
 
-  systemScheduler.timerCounter(currentULPUnixTimestamp, &lastTimeLookup, &tcnt0, &tcnt1, &tcnt2, &tcnt3, &minRstFlag, &hourRstFlag, &dayRstFlag);
+  uint16_t tTemp;
+
+  tTemp = sensorConfigurator.getSecond();
+  systemScheduler.timeComparison(&tTemp, &tcnt0, &minRstFlag);
+
+  tTemp = sensorConfigurator.getMinute();
+  systemScheduler.timeComparison(&tTemp, &tcnt1, &hourRstFlag);
+
+  tTemp = sensorConfigurator.getHour();
+  systemScheduler.timeComparison(&tTemp, &tcnt2, &dayRstFlag);
+
+  tTemp = sensorConfigurator.getDay();
+  systemScheduler.timeComparison(&tTemp, &tcnt3, &monthRstFlag);
+
   systemScheduler.resetRegisterByFlag(mbInstrument._modbusInstance, &minRstFlag, sensorConfigurator.modbusRegistersCount);
   systemScheduler.resetRegisterByFlag(mbInstrument._modbusInstance, &hourRstFlag, sensorConfigurator.modbusRegistersCount);
   systemScheduler.resetRegisterByFlag(mbInstrument._modbusInstance, &dayRstFlag, sensorConfigurator.modbusRegistersCount);
+  systemScheduler.resetRegisterByFlag(mbInstrument._modbusInstance, &monthRstFlag, sensorConfigurator.modbusRegistersCount);
 
 unlicensed:
   sensorDataPacket = sensorConfigurator.getSensorsValue(instrumentManager, mbInstrument); // sensor data packet which will be send to the cloud
@@ -225,10 +257,10 @@ unlicensed:
   sensorConfigurator.checkCloudUpdate(&networkManager.cloudUpdated, &cloud);              // check for update if there any changes on the cloud conf if update occurs then update the cloud setup
   sensorConfigurator.checkRTCUpdate(&networkManager.RTCUpdated, &networkManager);         // check for update if there any changes on the RTC Configuration update
 
-  uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
-  Serial.print("Free Heap: ");
-  Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
-  Serial.println(" KB");
+  // uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
+  // Serial.print("Free Heap: ");
+  // Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
+  // Serial.println(" KB");
 
   vTaskDelay(3000 / portTICK_PERIOD_MS); // delay
 

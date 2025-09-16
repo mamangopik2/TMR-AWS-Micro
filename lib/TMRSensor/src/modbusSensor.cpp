@@ -17,9 +17,9 @@ void modbusSensor::test()
 
 uint16_t modbusSensor::readUnsignedWord(uint8_t slaveID, uint16_t regType, uint16_t regAddr)
 {
-    Serial.print("==========register type: ");
-    Serial.print(regType);
-    Serial.print("===================================\n");
+    // Serial.print("==========register type: ");
+    // Serial.print(regType);
+    // Serial.print("===================================\n");
     uint16_t reg = 0;
     if (!_modbusInstance->slave())
     {

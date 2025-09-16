@@ -34,7 +34,7 @@ bool TMRemoteMQ::connect()
     mqtt_client->subscribe(topic.c_str());
     topic = _SN + "/TMRAWS/device/time/set";
     mqtt_client->subscribe(topic.c_str());
-    mqtt_client->subscribe("TMR-123/TMRAWS/device/logger/get");
+    mqtt_client->subscribe("TMR-A32/2025/1/0915/ECA8/TMRAWS/device/logger/get");
     return 1;
 }
 
@@ -83,7 +83,7 @@ void TMRemoteMQ::messageReceived(String &topic, String &payload)
         file.close();
         networkManager->siteUpdated = true; // set update flag to trigger the update
     }
-    if (topic == "TMR-123/TMRAWS/device/logger/get")
+    if (topic == "TMR-A32/2025/1/0915/ECA8/TMRAWS/device/logger/get")
     {
         // Serial.println("streaming CSV file.....");
         // Serial.println(payload);
@@ -288,7 +288,7 @@ void TMRemoteMQ::run(void *parameter)
     unsigned long t2 = millis();
 threadStart:
     TMRemoteMQ *remote = static_cast<TMRemoteMQ *>(parameter);
-    remote->begin(MQTT_BROKER, MQTT_PORT, "TMR-123");
+    remote->begin(MQTT_BROKER, MQTT_PORT, "TMR-A32/2025/1/0915/ECA8");
     while (true)
     {
         try
@@ -312,7 +312,7 @@ threadStart:
                         if (!Ping.ping(MQTT_BROKER))
                         {
                             remote->mqtt_client->disconnect();
-                            remote->begin(MQTT_BROKER, MQTT_PORT, "TMR-123");
+                            remote->begin(MQTT_BROKER, MQTT_PORT, "TMR-A32/2025/1/0915/ECA8");
                         }
                         t2 = millis();
                     }

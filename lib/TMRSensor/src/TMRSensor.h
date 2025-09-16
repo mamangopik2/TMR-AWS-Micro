@@ -13,6 +13,7 @@
 #include <TMRLicenseManager.h>
 #include "esp_attr.h"
 #include <time.h>
+#include <RTClib.h>
 
 #if defined USE_SD_LOG
 #include <SDStorage.h>
@@ -140,6 +141,8 @@ public:
 
     uint16_t modbusRegistersCount = 0;
 
+    RTC_DS1307 *rtcDevice;
+
     float getSensorValue(JsonArray sensors, const char *tag);
     unsigned long *currentULPUnixTimestamp;
     unsigned long *lastULPUnixTimestamp;
@@ -189,6 +192,14 @@ public:
     String getISOTimeRTC();
     void initRTC();
     unsigned long getUnixTime();
+
+    uint16_t getSecond();
+    uint16_t getMinute();
+    uint16_t getHour();
+    uint16_t getDay();
+    uint16_t dayOfWeek();
+    uint16_t getMonth();
+    uint16_t getYear();
 };
 class scheduler
 {
@@ -200,7 +211,7 @@ public:
     void deepSleep(unsigned long durationMinute);
     void resetRegisterScheduler(ModbusRTU *_modbusInstance, uint64_t slaveAddress, uint16_t regOffset, uint16_t regAddr);
 
-    void timerCounter(uint32_t timestamp, uint32_t *lastTimestamp, uint32_t *sec, uint32_t *min, uint32_t *hour, uint32_t *day, byte *minFlag, byte *hourFlag, byte *dayFlag);
+    void timeComparison(uint16_t *tCur, uint16_t *tLast, byte *flag);
     void resetRegisterByFlag(ModbusRTU *_modbusInstance, byte *flag, uint16_t nufOfreg);
 };
 
