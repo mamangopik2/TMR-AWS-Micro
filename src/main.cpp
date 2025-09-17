@@ -82,7 +82,7 @@ String getDeviceInfo()
 {
   StaticJsonDocument<128> info;
   info["battery_voltage"] = String(((analogRead(VBAT_SENSE_PIN) * (3.3 / 4095.0)) * 2) + 0.29, 2); // read the battery voltage
-  info["sn"] = "TMR-A32/2025/1/0915/ECA8";
+  info["sn"] = remote._SN;
   char bufferSerialOut[16];
   sprintf(bufferSerialOut, "%d:%d%d:%d%d:%d%d", tcnt3, tcnt2 / 10, tcnt2 % 10, tcnt1 / 10, tcnt1 % 10, tcnt0 / 10, tcnt0 % 10);
   info["up_time"] = bufferSerialOut;

@@ -34,7 +34,8 @@ bool TMRemoteMQ::connect()
     mqtt_client->subscribe(topic.c_str());
     topic = _SN + "/TMRAWS/device/time/set";
     mqtt_client->subscribe(topic.c_str());
-    mqtt_client->subscribe("TMR-A32/2025/1/0915/ECA8/TMRAWS/device/logger/get");
+    topic = _SN + "/TMRAWS/device/logger/get";
+    mqtt_client->subscribe(topic.c_str());
     return 1;
 }
 
@@ -83,7 +84,8 @@ void TMRemoteMQ::messageReceived(String &topic, String &payload)
         file.close();
         networkManager->siteUpdated = true; // set update flag to trigger the update
     }
-    if (topic == "TMR-A32/2025/1/0915/ECA8/TMRAWS/device/logger/get")
+    // if (topic == "TMR-A32/2025/1/0915/ECA8/TMRAWS/device/logger/get")
+    if (topic == this->_SN + "/TMRAWS/device/logger/get")
     {
         // Serial.println("streaming CSV file.....");
         // Serial.println(payload);
@@ -286,13 +288,44 @@ void TMRemoteMQ::run(void *parameter)
 {
     unsigned long t1 = millis();
     unsigned long t2 = millis();
+    unsigned long t3 = millis();
+    if (SPIFFS.begin(true) == false)
+    {
+        Serial.println("An Error has occurred while mounting SPIFFS");
+        return;
+    }
+    String last_SN = "";
 threadStart:
+    if (SPIFFS.exists("/SN.txt") == false)
+    {
+        vTaskDelay(1000);
+        File file = SPIFFS.open("/SN.txt", "w", true);
+        file.print("TMR-A32" + WiFi.macAddress());
+        file.close();
+    }
     TMRemoteMQ *remote = static_cast<TMRemoteMQ *>(parameter);
-    remote->begin(MQTT_BROKER, MQTT_PORT, "TMR-A32/2025/1/0915/ECA8");
+    File file = SPIFFS.open("/SN.txt", "r");
+    remote->_SN = file.readString();
+    last_SN = remote->_SN;
+    file.close();
+    Serial.println("Device SN: " + remote->_SN);
+    remote->begin(MQTT_BROKER, MQTT_PORT, remote->_SN.c_str());
     while (true)
     {
+        if (last_SN != remote->_SN)
+        {
+            Serial.println("SN changed, restarting...");
+            ESP.restart();
+        }
         try
         {
+            if (millis() - t3 > 5000)
+            {
+                t3 = millis();
+                file = SPIFFS.open("/SN.txt", "r");
+                remote->_SN = file.readString();
+                file.close();
+            }
 
             if (WiFi.status() == WL_CONNECTED)
             {
@@ -312,7 +345,7 @@ threadStart:
                         if (!Ping.ping(MQTT_BROKER))
                         {
                             remote->mqtt_client->disconnect();
-                            remote->begin(MQTT_BROKER, MQTT_PORT, "TMR-A32/2025/1/0915/ECA8");
+                            remote->begin(MQTT_BROKER, MQTT_PORT, remote->_SN.c_str());
                         }
                         t2 = millis();
                     }

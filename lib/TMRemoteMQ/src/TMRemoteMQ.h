@@ -20,7 +20,7 @@ public:
     uint8_t fail_counter = 0;
     wifiManager *networkManager;
     String _broker;
-    String _SN = "TMR-A32/2025/1/0915/ECA8";
+    String _SN = "TMR-A32/2025/0/0191/XXXX";
     String *logFileList;
     String *deviceInfo;
     WiFiClient *mqtt_net;
