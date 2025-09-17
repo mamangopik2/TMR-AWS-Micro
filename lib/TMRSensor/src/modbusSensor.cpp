@@ -124,11 +124,29 @@ float modbusSensor::readFloat(uint8_t slaveID, uint16_t regType, uint16_t regAdd
         vTaskDelay(1);
         _modbusInstance->task();
     }
+    uint32_t combined = 0xffffffff;
+    if (bigEndian == true)
+    {
+        combined = ((uint32_t)regs[1] << 16) | regs[0];
+    }
+    else
+    {
+        combined = ((uint32_t)regs[0] << 16) | regs[1];
+    }
+    float result;
+    memcpy(&result, &combined, sizeof(result));
+    Serial.print("HBYTE:");
+    Serial.print(regs[1], HEX);
+    Serial.print("  LBYTE:");
+    Serial.print(regs[0], HEX);
+    Serial.print("  converted:");
+    Serial.println(result);
+    return result;
 
-    uint32_t combined = combineWords32(regs, bigEndian);
-    float value;
-    memcpy(&value, &combined, sizeof(float));
-    return value;
+    // uint32_t combined = combineWords32(regs, bigEndian);
+    // float value;
+    // memcpy(&value, &combined, sizeof(float));
+    // return value;
 }
 
 double modbusSensor::readDouble(uint8_t slaveID, uint16_t regType, uint16_t regAddr, bool bigEndian)

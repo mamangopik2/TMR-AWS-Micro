@@ -48,7 +48,8 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         // Basic Info
         const char *tag = sensor["tag_name"];
         const char *phy = sensor["phy"]["channel"];
-
+        Serial.print("physical:");
+        Serial.println(String(phy));
         if (String(phy) != "MATH")
         {
             // Calibration
@@ -80,27 +81,26 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             const char *RU = sensor["raw_unit"];
 
             uint16_t dataType;
-            if (dtype == "UINT16")
+            Serial.println(String(dtype));
+            if (String(dtype) == "UINT16")
                 dataType = MODBUS_UINT16;
-            else if (dtype == "INT16")
+            if (String(dtype) == "INT16")
                 dataType = MODBUS_INT16;
-            else if (dtype == "UINT32")
+            if (String(dtype) == "UINT32")
                 dataType = MODBUS_UINT32;
-            else if (dtype == "INT32")
+            if (String(dtype) == "INT32")
                 dataType = MODBUS_INT32;
-            else if (dtype == "FLOAT")
+            if (String(dtype) == "FLOAT32")
                 dataType = MODBUS_FLOAT;
-            else if (dtype == "DOUBLE")
+            if (String(dtype) == "DOUBLE")
                 dataType = MODBUS_DOUBLE;
-            else
-                dataType = MODBUS_UINT16;
 
-            // Serial.print("======from config reader: data type: ");
-            // Serial.print(dataType);
-            // Serial.print("======\n");
-            // Serial.print("======from config reader: register type: ");
-            // Serial.print(reg_type);
-            // Serial.print("======\n");
+            Serial.print("======from config reader: data type: ");
+            Serial.print(dataType);
+            Serial.print("======\n");
+            Serial.print("======from config reader: register type: ");
+            Serial.print(reg_type);
+            Serial.print("======\n");
 
             if (String(reg_type) == "HREG")
             {
@@ -128,9 +128,6 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
                 bigEndian = true;
             else
                 bigEndian = false;
-
-            // Serial.print("physical:");
-            // Serial.println(phy);
 
             // debuger.debug(String(phy));
             if (String(phy) == "modbus")
@@ -267,9 +264,9 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
 
             sensorData += "}";
 
-            // Serial.println("=========MATHHHHH=========");
-            // Serial.println(sensorData);
-            // Serial.println("=========MATHHHHH=========");
+            Serial.println("=========MATH=========");
+            Serial.println(sensorData);
+            Serial.println("=========MATH=========");
         }
 
         // Serial.print("============Sensor Data============\n");
@@ -338,7 +335,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
                 result = val1 + val2;
             else if (strcmp(op, "-") == 0)
                 result = val1 - val2;
-            else if (strcmp(op, "*") == 0)
+            else if (strcmp(op, "x") == 0)
                 result = val1 * val2;
             else if (strcmp(op, "/") == 0 && val2 != 0)
                 result = val1 / val2;
@@ -347,7 +344,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             sensor["value"]["scaled"] = result;
             sensor["value"]["unscaled"] = result;
 
-            // Serial.printf("Updated %s = %.2f\n", (const char *)sensor["tag_name"], result);
+            Serial.printf("Updated %s = %.2f\n", (const char *)sensor["tag_name"], result);
         }
     }
     serializeJson(jsonBuffer, jsonOutput);
