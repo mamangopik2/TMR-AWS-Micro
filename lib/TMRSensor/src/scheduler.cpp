@@ -5,6 +5,7 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
     bool status;
     if (conf->getCloudInterval().toInt() >= 5) // if the sending interval > 5 minutes, activate sleep mode
     {
+        Serial.println("> 5 minutes");
         if (*clockMinute >= *runUpTimeMinute)
         {
             // Serial.print("sending, Timesource :");

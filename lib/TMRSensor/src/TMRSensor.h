@@ -170,6 +170,8 @@ public:
     String getTimeSource();
     String getNTPServer();
 
+    void RTCSync();
+
     HardwareSerial *_modbusPort;
     int getSerialMode();
     uint32_t getSerialBaud();

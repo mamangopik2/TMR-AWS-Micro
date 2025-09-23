@@ -9,12 +9,12 @@ float configReader::getSensorValue(JsonArray sensors, const char *tag)
         if (sensor["tag_name"] == tag)
         {
             float value = sensor["value"]["scaled"];
-            // Serial.print("========selected to Math:");
-            // Serial.print(tag);
-            // Serial.println("===========");
-            // Serial.print("========value:");
-            // Serial.print(value);
-            // Serial.println("===========");
+            // //Serial.print("========selected to Math:");
+            // //Serial.print(tag);
+            // //Serial.println("===========");
+            // //Serial.print("========value:");
+            // //Serial.print(value);
+            // //Serial.println("===========");
             return value;
         }
     }
@@ -27,15 +27,15 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
     uint16_t byteCounterBuffer = 0;
     String sensorsData[50] = {};
     uint8_t sensorsIndex = 0;
-    // //Serial.println(jsonString);
+    // ////Serial.println(jsonString);
     DynamicJsonDocument doc(512);
 
     // Deserialize the JSON string into the document
     DeserializationError error = deserializeJson(doc, _jsonString);
     if (error)
     {
-        // Serial.print("deserializeJson() failed: ");
-        // Serial.println(error.c_str());
+        // //Serial.print("deserializeJson() failed: ");
+        // //Serial.println(error.c_str());
     }
 
     // Access values
@@ -48,8 +48,8 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
         // Basic Info
         const char *tag = sensor["tag_name"];
         const char *phy = sensor["phy"]["channel"];
-        Serial.print("physical:");
-        Serial.println(String(phy));
+        // Serial.print("physical:");
+        // Serial.println(String(phy));
         if (String(phy) != "MATH")
         {
             // Calibration
@@ -81,7 +81,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             const char *RU = sensor["raw_unit"];
 
             uint16_t dataType;
-            Serial.println(String(dtype));
+            // Serial.println(String(dtype));
             if (String(dtype) == "UINT16")
                 dataType = MODBUS_UINT16;
             if (String(dtype) == "INT16")
@@ -95,12 +95,12 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             if (String(dtype) == "DOUBLE")
                 dataType = MODBUS_DOUBLE;
 
-            Serial.print("======from config reader: data type: ");
-            Serial.print(dataType);
-            Serial.print("======\n");
-            Serial.print("======from config reader: register type: ");
-            Serial.print(reg_type);
-            Serial.print("======\n");
+            // Serial.print("======from config reader: data type: ");
+            // Serial.print(dataType);
+            // Serial.print("======\n");
+            // Serial.print("======from config reader: register type: ");
+            // Serial.print(reg_type);
+            // Serial.print("======\n");
 
             if (String(reg_type) == "HREG")
             {
@@ -119,9 +119,9 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
                 regType = COIL;
             }
 
-            // Serial.print("======actual : register: ");
-            // Serial.print(regType);
-            // Serial.print("======\n");
+            // //Serial.print("======actual : register: ");
+            // //Serial.print(regType);
+            // //Serial.print("======\n");
 
             uint8_t bigEndian;
             if (mbBigEndian == "TRUE")
@@ -134,17 +134,17 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             {
                 if (String(calibration_mode) == "1") // kFactor
                 {
-                    // //Serial.println("with KF");
+                    // ////Serial.println("with KF");
                     sensorData = sensManager.readModbusKF(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(k_factor), atof(offset_val));
                 }
                 else if (String(calibration_mode) == "2") // sensitivity
                 {
-                    // //Serial.println("with sensitivity");
+                    // ////Serial.println("with sensitivity");
                     sensorData = sensManager.readModbus(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(sensitivity), atof(offset_val));
                 }
                 else if (String(calibration_mode) == "3") // two-points callibration
                 {
-                    // //Serial.println("with two-points callibration");
+                    // ////Serial.println("with two-points callibration");
                     sensorData = sensManager.readModbus(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), dataType, regType, atoi(reg), atoi(offset), bigEndian, atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
                 }
                 else
@@ -188,7 +188,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
                                      ",\"scaled\":" + String(0, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
                     }
 
-                    // //Serial.println("with KF");
+                    // ////Serial.println("with KF");
                 }
                 else if (String(calibration_mode) == "2") // sensitivity
                 {
@@ -206,7 +206,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
                 }
                 else if (String(calibration_mode) == "3") // two-points callibration
                 {
-                    // //Serial.println("with two-points callibration");
+                    // ////Serial.println("with two-points callibration");
                     try
                     {
                         sensorData = sensManager.readAnalog_MAP(String(EU), String(RU), getSiteInfo() + String(tag), atoi(ai_ch), atof(readout_min), atof(readout_max), atof(actual_min), atof(actual_max));
@@ -264,14 +264,14 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
 
             sensorData += "}";
 
-            Serial.println("=========MATH=========");
-            Serial.println(sensorData);
-            Serial.println("=========MATH=========");
+            // Serial.println("=========MATH=========");
+            // Serial.println(sensorData);
+            // Serial.println("=========MATH=========");
         }
 
-        // Serial.print("============Sensor Data============\n");
-        // Serial.println(sensorData);
-        // Serial.println("===================================\n");
+        // //Serial.print("============Sensor Data============\n");
+        // //Serial.println(sensorData);
+        // //Serial.println("===================================\n");
         sensorsData[sensorsIndex] = sensorData;
         sensorsIndex++;
     }
@@ -296,7 +296,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
 
     if (err)
     {
-        Serial.println("JSON parse failed!");
+        // Serial.println("JSON parse failed!");
     }
 
     JsonArray sensors = jsonBuffer["sensors"];
@@ -344,7 +344,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             sensor["value"]["scaled"] = result;
             sensor["value"]["unscaled"] = result;
 
-            Serial.printf("Updated %s = %.2f\n", (const char *)sensor["tag_name"], result);
+            // Serial.printf("Updated %s = %.2f\n", (const char *)sensor["tag_name"], result);
         }
     }
     serializeJson(jsonBuffer, jsonOutput);
@@ -447,24 +447,24 @@ void configReader::loadSerialConfigFile()
     DeserializationError error = deserializeJson(SerialConfDoc, _serialComPropertiesJson);
     if (error)
     {
-        // Serial.print("deserializeJson() failed: ");
-        // Serial.println(error.c_str());
+        // //Serial.print("deserializeJson() failed: ");
+        // //Serial.println(error.c_str());
     }
     _serialBaudrate = String((const char *)SerialConfDoc["baudrate"]);
     _serialMode = String((const char *)SerialConfDoc["mode"]);
-    // Serial.println("====serial conf======");
-    // Serial.println(_serialBaudrate);
-    // Serial.println(_serialMode);
-    // Serial.println("====serial conf======");
+    // //Serial.println("====serial conf======");
+    // //Serial.println(_serialBaudrate);
+    // //Serial.println(_serialMode);
+    // //Serial.println("====serial conf======");
     SerialConfDoc.clear();
 }
 void configReader::conFigureSerial(HardwareSerial *modbusPort)
 {
 
-    // Serial.println("Serial 2 pin was assigned successfully");
+    // //Serial.println("Serial 2 pin was assigned successfully");
     Serial2.begin(this->getSerialBaud(), this->getSerialMode(), RXD2, TXD2, false, 300);
     delay(3000);
-    // Serial.println("Serial port was began successfully");
+    // //Serial.println("Serial port was began successfully");
 }
 void configReader::checkSerialUpdate(bool *serialUpdateFlag, modbusSensor &mbInterface)
 {
@@ -476,7 +476,7 @@ void configReader::checkSerialUpdate(bool *serialUpdateFlag, modbusSensor &mbInt
         this->conFigureSerial(_modbusPort);
         vTaskDelay(1000);
         mbInterface.init(&Serial2);
-        // Serial.println("Modbus Port was changed successfully");
+        // //Serial.println("Modbus Port was changed successfully");
         *serialUpdateFlag = false;
     }
 }
@@ -511,7 +511,7 @@ void configReader::loadTimeInfo()
     File JsonFile = SPIFFS.open("/time_config.json");
     _timeSetup = JsonFile.readString();
     JsonFile.close();
-    // Serial.println(_timeSetup);
+    // //Serial.println(_timeSetup);
 }
 void configReader::loadCloudInfo()
 {
@@ -590,13 +590,15 @@ void configReader::checkTimeUpdate(bool *timeUpdateFlag)
             NTPServer = ntpserver;
             timezone = tzone;
             timeSource = tsource;
-            // Serial.println(getTimeSource());
+            // //Serial.println(getTimeSource());
             if (getTimeSource() == "NTP")
             {
                 configTime((timezone.toFloat() * 3600), 0, NTPServer.c_str());
             }
             else
             {
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
+                configTime((timezone.toFloat() * 3600), 0, NTPServer.c_str());
                 initRTC();
             }
             json.clear();
@@ -604,15 +606,15 @@ void configReader::checkTimeUpdate(bool *timeUpdateFlag)
         }
         catch (const std::exception &e)
         {
-            Serial.println(e.what());
+            // Serial.println(e.what());
         }
     }
 }
 
 void configReader::checkCloudUpdate(bool *cloudUpdateFlag, TMRInstrumentWeb *cloud)
 {
-    // //Serial.print("workspace len:");
-    // //Serial.println(cloud->getWorkspace().length());
+    // ////Serial.print("workspace len:");
+    // ////Serial.println(cloud->getWorkspace().length());
     if (*cloudUpdateFlag == true || cloud->_workspace.length() < 1)
     {
         loadCloudInfo();
@@ -627,14 +629,37 @@ void configReader::initRTC()
 {
     if (!timeRTC.begin())
     {
-        // Serial.println("Couldn't find RTC");
+        // //Serial.println("Couldn't find RTC");
     }
     delay(1000);
     if (!timeRTC.isrunning())
     {
-        // Serial.println("RTC is NOT running!");
+        // //Serial.println("RTC is NOT running!");
     }
     rtcDevice = &timeRTC;
+}
+
+void configReader::RTCSync()
+{
+
+    if (rtcDevice != nullptr)
+    {
+        struct tm timeinfo;
+        if (!getLocalTime(&timeinfo))
+        {
+            Serial.println("Failed to obtain time");
+            return;
+        }
+
+        // convert NTP -> DateTime
+        int year = timeinfo.tm_year + 1900;
+        int month = timeinfo.tm_mon + 1;
+        int day = timeinfo.tm_mday;
+        int hour = timeinfo.tm_hour;
+        int minute = timeinfo.tm_min;
+        int second = timeinfo.tm_sec;
+        timeRTC.adjust(DateTime(year, month, day, hour, minute, second));
+    }
 }
 
 uint16_t configReader::getSecond()
@@ -778,7 +803,7 @@ void configReader::checkRTCUpdate(bool *RTCUpdateFlag, wifiManager *netmanager)
     {
         DynamicJsonDocument doc(128);
         DeserializationError error = deserializeJson(doc, netmanager->RTCJson);
-        // Serial.println(netmanager->RTCJson);
+        // //Serial.println(netmanager->RTCJson);
 
         int year = doc["year"];
         int month = doc["month"];
@@ -788,7 +813,7 @@ void configReader::checkRTCUpdate(bool *RTCUpdateFlag, wifiManager *netmanager)
         int second = doc["second"];
 
         timeRTC.adjust(DateTime(year, month, day, hour, minute, second));
-        // Serial.println("RTC updated successfully.");
+        // //Serial.println("RTC updated successfully.");
         doc.clear();
         *RTCUpdateFlag = false;
     }
@@ -804,8 +829,8 @@ bool configReader::postSensors(const char *json, TMRInstrumentWeb *cloud)
     // DeserializationError error = deserializeJson(doc, json);
     // if (error)
     // {
-    //     //Serial.print("Failed to parse JSON: ");
-    //     //Serial.println(error.f_str());
+    //     ////Serial.print("Failed to parse JSON: ");
+    //     ////Serial.println(error.f_str());
     //     return false;
     // }
 
