@@ -6,10 +6,10 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
     if (conf->getCloudInterval().toInt() >= 5) // if the sending interval > 5 minutes, activate sleep mode
     {
         Serial.println("> 5 minutes");
-        if (*clockMinute >= *runUpTimeMinute)
+        if (conf->getMinute() % conf->getCloudInterval().toInt() == 0)
         {
-            // Serial.print("sending, Timesource :");
-            // Serial.println(conf->getTimeSource());
+            Serial.print("sending, Timesource :");
+            Serial.println(conf->getTimeSource());
             if (millis() - networkManager->getBeaconTime() > (1 * 60 * 1000)) // activate sleep after 10 minutes from client finished configuration
             {
                 if (conf->getTimeSource() == "NTP")
@@ -28,6 +28,8 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
                 }
                 else
                 {
+                    Serial.print("sending, Timesource :");
+                    Serial.println(conf->getTimeSource());
                     *logFlag = 1;
                     Serial.print("Free Heap: ");
                     Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
@@ -42,7 +44,7 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
                 }
                 if (status == true)
                 {
-                    // Serial.println("deep sleep");
+                    Serial.println("deep sleep");
                     deepSleep(conf->getCloudInterval().toInt() - *runUpTimeMinute);
                 }
                 else

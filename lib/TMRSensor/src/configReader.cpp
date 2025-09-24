@@ -761,27 +761,31 @@ String configReader::getISOTimeNTP()
     {
         bool initTime = true;
         checkTimeUpdate(&initTime);
-        return "0000-00-00T00:00:00Z"; // Return fallback if time isn't available
+        return "0000-00-00T00:00:00+00:00"; // Return fallback if time isn't available
     }
 
     char isoBuffer[25];
-    strftime(isoBuffer, sizeof(isoBuffer), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
-    return String(isoBuffer);
+    strftime(isoBuffer, sizeof(isoBuffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+    String buf = String(isoBuffer);
+    buf += "+0" + this->getTimeZone() + ":00";
+    return buf;
 }
 String configReader::getISOTimeRTC()
 {
     if (!timeRTC.isrunning())
     {
         initRTC();
-        return "0000-00-00T00:00:00Z"; // Return fallback if time isn't available
+        return "0000-00-00T00:00:00+00+00"; // Return fallback if time isn't available
     }
     DateTime now = timeRTC.now();
 
     char buffer[25];
-    snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02dZ",
+    snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d",
              now.year(), now.month(), now.day(),
              now.hour(), now.minute(), now.second());
-    return String(buffer);
+    String buf = String(buffer);
+    buf += "+0" + this->getTimeZone() + ":00";
+    return buf;
 }
 
 unsigned long configReader::getUnixTime()

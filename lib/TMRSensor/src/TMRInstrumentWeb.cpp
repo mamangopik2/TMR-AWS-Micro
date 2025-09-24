@@ -213,18 +213,23 @@ bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
         JsonObject entry = root.createNestedObject();
         entry["path"] = tag;
         entry["workspace"] = workspaceId;
-        entry["timestamp"] = Timestamp;
-        entry["retention"] = "PERMANENT";
-
         JsonArray updates = entry.createNestedArray("updates");
         JsonObject update = updates.createNestedObject();
         JsonObject value = update.createNestedObject("value");
+
+        JsonObject prop = entry.createNestedObject("properties");
+        prop["nitagRetention"] = "DURATION";
+        prop["nitagHistoryTTLDays"] = "360";
+        prop["nitagMaxHistoryCount"] = "100000";
+
+        update["timestamp"] = Timestamp;
         value["type"] = "DOUBLE";
         value["value"] = scaledValue;
     }
 
     serializeJson(outputDoc, payload);
 
+    // Serial.println(payload);
     int httpResponseCode = http.POST(payload);
     Serial.print("HTTP Response code: ");
     Serial.println(httpResponseCode);

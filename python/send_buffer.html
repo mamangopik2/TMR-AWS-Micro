@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>CSV to API Sender</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h2 {
+            color: #333;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        input,
+        textarea,
+        button {
+            margin-top: 5px;
+            padding: 8px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        button {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f4f4f4;
+            border: 1px solid #ccc;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>CSV → API Sender</h2>
+
+    <label>API Key</label>
+    <input type="text" id="apiKey" placeholder="Enter API Key">
+
+    <label>Workspace ID</label>
+    <input type="text" id="workspaceId" placeholder="Enter Workspace ID">
+
+    <label>Host URL</label>
+    <input type="text" id="host" placeholder="https://tmr-instrumentweb.com/nitag/v2/update-current-values">
+
+    <label>Select CSV File</label>
+    <input type="file" id="csvFile" accept=".csv">
+
+    <button onclick="processCSV()">Upload & Send</button>
+
+    <div id="log"></div>
+
+    <script>
+        function log(msg) {
+            const logDiv = document.getElementById("log");
+            logDiv.innerHTML += msg + "<br>";
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function processCSV() {
+            const apiKey = document.getElementById("apiKey").value.trim();
+            const workspaceId = document.getElementById("workspaceId").value.trim();
+            const host = document.getElementById("host").value.trim();
+            const fileInput = document.getElementById("csvFile").files[0];
+
+            if (!apiKey || !workspaceId || !host || !fileInput) {
+                alert("Please fill all fields and upload a CSV file.");
+                return;
+            }
+
+            const text = await fileInput.text();
+            const lines = text.split(/\r?\n/);
+
+            let tags = new Set();
+            let entries = {};
+            const localTimezone = "+07:00";
+
+            // First pass: collect unique tags
+            lines.forEach(line => {
+                let cols = line.split(",");
+                if (cols.length <= 1) cols = line.split(";");
+                if (cols.length > 1) {
+                    tags.add(cols[1]);
+                }
+            });
+
+            // Second pass: build updates per tag
+            tags.forEach(tagName => {
+                let template = { path: tagName, workspace: workspaceId, updates: [] };
+
+                lines.forEach(line => {
+                    let cols = line.split(",");
+                    if (cols.length <= 1) cols = line.split(";");
+                    if (cols.length > 1) {
+                        let ts = cols[0].replace("Z", "");
+                        let tag = cols[1];
+                        if (tag === tagName) {
+                            template.updates.push({
+                                value: { type: "DOUBLE", value: Math.floor(Math.random() * 20) + 10 },
+                                timestamp: ts + localTimezone
+                            });
+                        }
+                    }
+                });
+
+                entries[tagName] = template;
+            });
+
+            // Batch sending
+            const maxBatch = 900;
+            for (const entry in entries) {
+                const datas = entries[entry].updates;
+                let index = 0;
+                let repetition = Math.floor(datas.length / maxBatch);
+                let remainer = datas.length % maxBatch;
+
+                log(`Processing tag: ${entry}, total updates: ${datas.length}`);
+
+                for (let rep = 0; rep < repetition; rep++) {
+                    let buffer = datas.slice(index, index + maxBatch);
+                    index += maxBatch;
+                    await sendBatch(host, apiKey, workspaceId, entry, buffer, rep);
+                }
+
+                if (remainer > 0) {
+                    let buffer = datas.slice(index, index + remainer);
+                    index += remainer;
+                    await sendBatch(host, apiKey, workspaceId, entry, buffer, "last");
+                }
+            }
+        }
+
+        async function sendBatch(host, apiKey, workspaceId, path, buffer, rep) {
+            const packet = {
+                path: path,
+                workspace: workspaceId,
+                updates: buffer
+            };
+
+            try {
+                const response = await fetch(host, {
+                    method: "POST",
+                    headers: {
+                        "accept": "application/json",
+                        "x-ni-api-key": apiKey,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify([packet])
+                });
+
+                const text = await response.text();
+                log(`Sent batch ${rep} for ${path}, size=${buffer.length}, status=${response.status}`);
+                log(`Response: ${text}`);
+                await new Promise(r => setTimeout(r, 1000)); // delay like Python
+            } catch (err) {
+                log(`Error sending batch: ${err}`);
+            }
+        }
+    </script>
+
+</body>
+
+</html>

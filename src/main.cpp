@@ -71,7 +71,7 @@ void clock(void *param)
     if (secondCounter >= 60)
     {
       secondCounter = 0;
-      // minuteCounter++;
+      minuteCounter++;
     }
 
     vTaskDelay(500);
@@ -277,13 +277,6 @@ unlicensed:
     Serial.print(sensorConfigurator.getCloudInterval());
     Serial.print(" = ");
     Serial.println(sensorConfigurator.getMinute() % sensorConfigurator.getCloudInterval().toInt());
-
-    if (sensorConfigurator.getMinute() % sensorConfigurator.getCloudInterval().toInt() == 0)
-    {
-      minuteCounter = sensorConfigurator.getCloudInterval().toInt();
-    }
-    Serial.print("min CNT:");
-    Serial.println(minuteCounter);
 
     systemScheduler.manage(networkManager.globalMessage,
                            &sensorConfigurator,
