@@ -16,6 +16,8 @@ private:
 
 public:
     bool *_flagSensorUpdate, _flagSiteUpdate, _flagTimeUpdate, _flagCloudUpdate;
+    bool is_thread_run = false;
+    bool thread_enable = false;
     int _port;
     uint8_t fail_counter = 0;
     wifiManager *networkManager;

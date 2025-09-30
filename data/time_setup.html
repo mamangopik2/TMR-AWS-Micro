@@ -20,7 +20,7 @@
         <h2>Time Setup</h2>
         <img src="logo.png" alt="TMR logo">
 
-        <label for="time_source">Time Source</label>
+        <label for="time_source">Time Setup</label>
         <select name="time_source" id="time_source">
             <option value="NTP">NTP</option>
             <option value="RTC" selected>RTC</option>
@@ -69,6 +69,7 @@
                 <option value="13">GMT+13:00</option>
                 <option value="14">GMT+14:00</option>
             </select>
+            <button id="button_save">SET NTP</button>
         </div>
         <div id="rtc_cal_group">
             <label for="rtc_cal">RTC Calibration</label>
@@ -79,7 +80,6 @@
 
 
 
-        <button id="button_save">SAVE</button>
     </div>
 </body>
 <script src="beacon.js"></script>
@@ -123,7 +123,7 @@
 
 
         let data = {
-            time_source: `${timeSourceSelector.value}`,
+            time_source: "RTC",
             ntp_server: `${ntpServerSelector.value}`,
             time_zone: `${timeZoneSelector.value}`
         };

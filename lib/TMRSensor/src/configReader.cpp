@@ -662,6 +662,30 @@ void configReader::RTCSync()
     }
 }
 
+void configReader::RTCSync(byte *syncFlag)
+{
+
+    if (rtcDevice != nullptr && *syncFlag == 0)
+    {
+        struct tm timeinfo;
+        if (!getLocalTime(&timeinfo))
+        {
+            Serial.println("Failed to obtain time");
+            return;
+        }
+
+        // convert NTP -> DateTime
+        int year = timeinfo.tm_year + 1900;
+        int month = timeinfo.tm_mon + 1;
+        int day = timeinfo.tm_mday;
+        int hour = timeinfo.tm_hour;
+        int minute = timeinfo.tm_min;
+        int second = timeinfo.tm_sec;
+        timeRTC.adjust(DateTime(year, month, day, hour, minute, second));
+        *syncFlag = 1;
+    }
+}
+
 uint16_t configReader::getSecond()
 {
     if (timeRTC.isrunning())
@@ -761,13 +785,20 @@ String configReader::getISOTimeNTP()
     {
         bool initTime = true;
         checkTimeUpdate(&initTime);
-        return "0000-00-00T00:00:00+00:00"; // Return fallback if time isn't available
+        return "0000-00-00T00:00:00Z"; // Return fallback if time isn't available
     }
 
     char isoBuffer[25];
     strftime(isoBuffer, sizeof(isoBuffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
     String buf = String(isoBuffer);
-    buf += "+0" + this->getTimeZone() + ":00";
+    if (this->getTimeZone().toInt() < 10)
+    {
+        buf += "+0" + this->getTimeZone() + ":00";
+    }
+    else
+    {
+        buf += "+" + this->getTimeZone() + ":00";
+    }
     return buf;
 }
 String configReader::getISOTimeRTC()
@@ -775,7 +806,7 @@ String configReader::getISOTimeRTC()
     if (!timeRTC.isrunning())
     {
         initRTC();
-        return "0000-00-00T00:00:00+00+00"; // Return fallback if time isn't available
+        return "0000-00-00T00:00:00Z"; // Return fallback if time isn't available
     }
     DateTime now = timeRTC.now();
 
@@ -784,7 +815,14 @@ String configReader::getISOTimeRTC()
              now.year(), now.month(), now.day(),
              now.hour(), now.minute(), now.second());
     String buf = String(buffer);
-    buf += "+0" + this->getTimeZone() + ":00";
+    if (this->getTimeZone().toInt() < 10)
+    {
+        buf += "+0" + this->getTimeZone() + ":00";
+    }
+    else
+    {
+        buf += "+" + this->getTimeZone() + ":00";
+    }
     return buf;
 }
 

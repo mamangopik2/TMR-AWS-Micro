@@ -1,47 +1,31 @@
 #include "TMRSensor.h"
-void scheduler::manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag)
+void scheduler::manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag, uint8_t *bufferFlag)
 {
     uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
+    uint32_t RTCMinuteTimeTotal = (conf->getHour() * 60) + conf->getMinute();
+    Serial.print("RTC Time(Minute total) = ");
+    Serial.println(RTCMinuteTimeTotal);
     bool status;
     if (conf->getCloudInterval().toInt() >= 5) // if the sending interval > 5 minutes, activate sleep mode
     {
         Serial.println("> 5 minutes");
-        if (conf->getMinute() % conf->getCloudInterval().toInt() == 0)
+        if (RTCMinuteTimeTotal % conf->getCloudInterval().toInt() == 0)
         {
             Serial.print("sending, Timesource :");
             Serial.println(conf->getTimeSource());
+            *logFlag = 1;
+            Serial.print("Free Heap: ");
+            Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
+            Serial.println(" KB");
+
+            if ((freeHeap / 1024) <= 100)
+            {
+                Serial.println("Not Enough Free Heap");
+                ESP.restart();
+            }
+            status = cloud->publishBulk(*data, conf->getISOTimeRTC());
             if (millis() - networkManager->getBeaconTime() > (1 * 60 * 1000)) // activate sleep after 10 minutes from client finished configuration
             {
-                if (conf->getTimeSource() == "NTP")
-                {
-                    *logFlag = 1;
-                    Serial.print("Free Heap: ");
-                    Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
-                    Serial.println(" KB");
-
-                    if ((freeHeap / 1024) <= 100)
-                    {
-                        Serial.println("Not Enough Free Heap");
-                        ESP.restart();
-                    }
-                    status = cloud->publishBulk(*data, conf->getISOTimeNTP());
-                }
-                else
-                {
-                    Serial.print("sending, Timesource :");
-                    Serial.println(conf->getTimeSource());
-                    *logFlag = 1;
-                    Serial.print("Free Heap: ");
-                    Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
-                    Serial.println(" KB");
-
-                    if ((freeHeap / 1024) <= 100)
-                    {
-                        Serial.println("Not Enough Free Heap");
-                        ESP.restart();
-                    }
-                    status = cloud->publishBulk(*data, conf->getISOTimeRTC());
-                }
                 if (status == true)
                 {
                     Serial.println("deep sleep");
@@ -49,6 +33,7 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
                 }
                 else
                 {
+                    *bufferFlag = 0;
                     *clockMinute = 0;
                 }
             }
@@ -60,8 +45,6 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
     }
     else
     {
-        // Serial.print("sending, Timesource :");
-        // Serial.println(conf->getTimeSource());
         //  send every x minutes without sleep();
         if (*clockMinute >= conf->getCloudInterval().toInt())
         {
@@ -77,7 +60,11 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
                     Serial.println("Not Enough Free Heap");
                     ESP.restart();
                 }
-                cloud->publishBulk(*data, conf->getISOTimeNTP());
+                status = cloud->publishBulk(*data, conf->getISOTimeNTP());
+                if (!status)
+                {
+                    *bufferFlag = 1;
+                }
             }
             else
             {
@@ -91,7 +78,11 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
                     Serial.println("Not Enough Free Heap");
                     ESP.restart();
                 }
-                cloud->publishBulk(*data, conf->getISOTimeRTC());
+                status = cloud->publishBulk(*data, conf->getISOTimeRTC());
+                if (!status)
+                {
+                    *bufferFlag = 1;
+                }
             }
             *clockMinute = 0; // reset the minute timer after send the data
         }
@@ -207,4 +198,43 @@ void scheduler::deepSleep(unsigned long durationMinute)
     unsigned long durationUs = durationMinute * 1000000 * (60 - durationMinute);
     esp_sleep_enable_timer_wakeup(durationUs);
     esp_deep_sleep_start();
+}
+
+bool scheduler::sendBuffer(TMRInstrumentWeb *cloud, configReader *conf, String *dataToSend)
+{
+    if (conf->getMinute() % 2 == 0) /// adjust the timer to trigger buffer sending cycle
+    {
+        Serial.println("saatnya kirim buffer");
+
+        int statusSendingBuffer = 0;
+        Serial.println(*dataToSend);
+        if (dataToSend->length() > 10)
+        {
+            Serial.println("mengirim buffer");
+            String tz = "";
+            if (conf->getTimeZone().toInt() < 10)
+            {
+                tz += "+0" + conf->getTimeZone() + ":00";
+            }
+            else
+            {
+                tz += "+" + conf->getTimeZone() + ":00";
+            }
+            statusSendingBuffer = cloud->processCSV(dataToSend, tz);
+            if (statusSendingBuffer > 0)
+            {
+
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            Serial.println("buffer kosong");
+            return false;
+        }
+    }
 }

@@ -74,85 +74,6 @@ bool TMRInstrumentWeb::publishConfig(String tagName, String data)
     }
 }
 
-bool TMRInstrumentWeb::parseAndBuildJSON(const String &data, String Timestamp, String &outputPayload)
-{
-    if (data.indexOf("\"sensors\"") == -1)
-    {
-        Serial.println("No 'sensors' array found.");
-        return false;
-    }
-
-    String workspaceId = getWorkspace();
-    outputPayload = "[";
-    int sensorIndex = 0;
-
-    int sensorsStart = data.indexOf('[');
-    int sensorsEnd = data.lastIndexOf(']');
-    if (sensorsStart == -1 || sensorsEnd == -1)
-        return false;
-
-    String sensorsData = data.substring(sensorsStart + 1, sensorsEnd);
-    sensorsData.replace("},{", "}|{"); // temporary delimiter for split
-
-    while (sensorsData.length() > 0)
-    {
-        int sepIndex = sensorsData.indexOf("|");
-        String sensorEntry;
-
-        if (sepIndex != -1)
-        {
-            sensorEntry = sensorsData.substring(0, sepIndex + 1);
-            sensorsData = sensorsData.substring(sepIndex + 2);
-        }
-        else
-        {
-            sensorEntry = sensorsData;
-            sensorsData = "";
-        }
-
-        // Extract tag_name
-        int tagStart = sensorEntry.indexOf("\"tag_name\"");
-        if (tagStart == -1)
-            continue;
-        int tagValueStart = sensorEntry.indexOf("\"", tagStart + 11) + 1;
-        int tagValueEnd = sensorEntry.indexOf("\"", tagValueStart);
-        String tag = sensorEntry.substring(tagValueStart, tagValueEnd);
-
-        // Extract scaled value
-        int scaledStart = sensorEntry.indexOf("\"scaled\"");
-        if (scaledStart == -1)
-            continue;
-        int colonIndex = sensorEntry.indexOf(":", scaledStart);
-        int commaOrEnd = sensorEntry.indexOf(",", colonIndex + 1);
-        if (commaOrEnd == -1)
-            commaOrEnd = sensorEntry.indexOf("}", colonIndex + 1);
-        String valueStr = sensorEntry.substring(colonIndex + 1, commaOrEnd);
-        valueStr.trim();
-
-        Serial.print("Tag: ");
-        Serial.print(tag);
-        Serial.print(" Value: ");
-        Serial.println(valueStr);
-        Serial.print("At: ");
-        Serial.println(Timestamp);
-
-        // Append to output JSON
-        if (sensorIndex++ > 0)
-            outputPayload += ",";
-
-        outputPayload += "{";
-        outputPayload += "\"path\":\"" + tag + "\",";
-        outputPayload += "\"workspace\":\"" + workspaceId + "\",";
-        outputPayload += "\"timestamp\":\"" + Timestamp + "\",";
-        outputPayload += "\"retention\":\"PERMANENT\",";
-        outputPayload += "\"updates\":[{\"value\":{\"type\":\"DOUBLE\",\"value\":" + valueStr + "}}]";
-        outputPayload += "}";
-    }
-
-    outputPayload += "]";
-    return true;
-}
-
 bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
 {
     if (WiFi.status() != WL_CONNECTED)
@@ -160,7 +81,6 @@ bool TMRInstrumentWeb::publishBulk(String data, String Timestamp)
 
     WiFiClientSecure client;
     client.setInsecure();
-    // client.setBufferSizes(512, 512);
 
     HTTPClient http;
     String url = _host + "/nitag/v2/update-current-values";
@@ -367,4 +287,180 @@ bool TMRInstrumentWeb::setToken(const char *token)
 String TMRInstrumentWeb::getToken()
 {
     return _token;
+}
+
+// ====== Function to send batch ======
+int TMRInstrumentWeb::sendBatch(String tagName, TagEntry &tEntry, int start, int count)
+{
+    if (WiFi.status() != WL_CONNECTED)
+        return -1;
+
+    HTTPClient http;
+    http.begin(_host + "/nitag/v2/update-current-values");
+    http.addHeader("accept", "application/json");
+    http.addHeader("x-ni-api-key", _token);
+    http.addHeader("Content-Type", "application/json");
+
+    DynamicJsonDocument doc(512);
+    JsonArray root = doc.to<JsonArray>();
+    JsonObject packet = root.createNestedObject();
+    packet["path"] = tagName;
+    packet["workspace"] = getWorkspace();
+
+    JsonArray updates = packet.createNestedArray("updates");
+
+    for (int i = 0; i < count; i++)
+    {
+        UpdateEntry &ue = tEntry.updates[start + i];
+        JsonObject upd = updates.createNestedObject();
+        JsonObject value = upd.createNestedObject("value");
+        value["type"] = "DOUBLE";
+        value["value"] = ue.value.toDouble(); // ensure number, not string
+        upd["timestamp"] = ue.timestamp;
+    }
+
+    String jsonStr;
+    serializeJson(doc, jsonStr);
+
+    int httpResponseCode = http.POST(jsonStr);
+    Serial.printf("\nPOST -> Tag: %s\n", tagName.c_str());
+    Serial.println(jsonStr);
+    Serial.printf("Status: %d\n", httpResponseCode);
+
+    if (httpResponseCode > 0)
+    {
+        String resp = http.getString();
+        Serial.println("Response: " + resp);
+    }
+    else
+    {
+        Serial.printf("HTTP POST failed: %s\n", http.errorToString(httpResponseCode).c_str());
+    }
+
+    http.end();
+    doc.clear();
+    return httpResponseCode;
+}
+
+// ====== Function to parse & send ======
+int TMRInstrumentWeb::processCSV(String *csvContent, String timezone)
+{
+    uint16_t max_retry = 3;
+    int failCnt = 0;
+    entries.clear(); // reset storage
+
+    // break into lines
+    int from = 0;
+    while (true)
+    {
+        int to = csvContent->indexOf('\n', from);
+        if (to < 0)
+            break;
+        String line = csvContent->substring(from, to);
+        from = to + 1;
+
+        line.trim();
+        if (line.length() == 0)
+            continue;
+
+        // split by comma
+        int idx1 = line.indexOf(",");
+        int idx2 = line.indexOf(",", idx1 + 1);
+        int idx3 = line.indexOf(",", idx2 + 1);
+
+        if (idx1 < 0 || idx2 < 0 || idx3 < 0)
+            continue;
+
+        String ts = line.substring(0, idx1);
+        String tag = line.substring(idx1 + 1, idx2);
+        String scaledVal = line.substring(idx2 + 1, idx3);
+
+        UpdateEntry ue = {ts, scaledVal};
+
+        if (entries.find(tag) == entries.end())
+        {
+            TagEntry t;
+            t.path = tag;
+            entries[tag] = t;
+        }
+        entries[tag].updates.push_back(ue);
+    }
+
+    // ==== batching per tag ====
+    for (auto &kv : entries)
+    {
+        String tagName = kv.first.c_str();
+        TagEntry &tEntry = kv.second;
+
+        Serial.printf("\nTag: %s, total updates: %d\n", tagName.c_str(), tEntry.updates.size());
+
+        int repetition = tEntry.updates.size() / MAX_BATCH;
+        int remainder = tEntry.updates.size() % MAX_BATCH;
+        int index = 0;
+
+        for (int rep = 0; rep < repetition; rep++)
+        {
+            int retries = 0;
+            int statusBatch = -1;
+
+        resendBatch:
+            statusBatch = sendBatch(tagName, tEntry, index, MAX_BATCH);
+
+            if ((statusBatch < 200 || statusBatch > 299) && retries < max_retry)
+            {
+                Serial.printf("Retry batch (attempt %d)\n", retries + 1);
+                vTaskDelay(10 / portTICK_PERIOD_MS);
+                retries++;
+                goto resendBatch;
+            }
+            else
+            {
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
+            }
+
+            if (statusBatch < 200 || statusBatch > 299)
+                failCnt++;
+
+            index += MAX_BATCH;
+            vTaskDelay(10 / portTICK_PERIOD_MS);
+        }
+
+        if (remainder > 0)
+        {
+            int retries = 0;
+            int statusRem = -1;
+
+        resendRem:
+            statusRem = sendBatch(tagName, tEntry, index, remainder);
+
+            if ((statusRem < 200 || statusRem > 299) && retries < max_retry)
+            {
+                Serial.printf("Retry remainder (attempt %d)\n", retries + 1);
+                vTaskDelay(10 / portTICK_PERIOD_MS);
+                retries++;
+                goto resendRem;
+            }
+            else
+            {
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
+            }
+
+            if (statusRem < 200 || statusRem > 299)
+                failCnt++;
+
+            index += remainder;
+            vTaskDelay(10 / portTICK_PERIOD_MS);
+        }
+    }
+
+    if (failCnt > 0)
+    {
+        Serial.printf("\nUpload finished with %d failed batches \n", failCnt);
+        return -1;
+    }
+    else
+    {
+        Serial.println("\nAll data successfully sent");
+        return 1;
+    }
 }

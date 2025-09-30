@@ -29,6 +29,7 @@ byte minRstFlag = 0;
 byte hourRstFlag = 0;
 byte dayRstFlag = 0;
 byte monthRstFlag = 0;
+byte RTCSynced = 0;
 
 uint32_t lastTimeLookup = 0;
 
@@ -39,6 +40,7 @@ unsigned long minuteCounter = 0;
 unsigned long t0 = 0;
 unsigned long logger_interval = 0;
 uint8_t readyToLog = 0;
+uint8_t writeBufferFlag = 0;
 String fileLists;
 String deviceInfo;
 String jsonString;
@@ -146,6 +148,7 @@ void setup()
   logger.configurationManager = &sensorConfigurator;
   logger.handledLoggingMessage = &sensorDataPacket;
   logger.loggingFlag = &readyToLog;
+  logger.bufferStoreFlag = &writeBufferFlag;
   logger.startThread(4096, 1, 1);
 
   mbInstrument.init(&Serial2); // init the modbus instrument
@@ -278,12 +281,19 @@ unlicensed:
     Serial.print(" = ");
     Serial.println(sensorConfigurator.getMinute() % sensorConfigurator.getCloudInterval().toInt());
 
+    String bufferData = "";
+    logger.readLogFile("/TMRBuffer.csv", &bufferData);
+    if (systemScheduler.sendBuffer(&cloud, &sensorConfigurator, &bufferData))
+    {
+      logger.microSD->deleteFile(logger.microSD->card, "/TMRBuffer.csv");
+    }
+
     systemScheduler.manage(networkManager.globalMessage,
                            &sensorConfigurator,
                            &networkManager,
                            &cloud,
                            &runUpTimeMinute,
-                           &minuteCounter, &readyToLog);
+                           &minuteCounter, &readyToLog, &writeBufferFlag);
 
     fileLists = logger.microSD->listDir(SD_MMC, "/", 1);
     deviceInfo = getDeviceInfo();
@@ -293,11 +303,11 @@ unlicensed:
     Serial.println(e.what());
   }
 
-  if (sensorConfigurator.getHour() == 0)
+  if (sensorConfigurator.getHour() == 0) /// set the NTP sync every midnight
   {
     try
     {
-      sensorConfigurator.RTCSync();
+      sensorConfigurator.RTCSync(&RTCSynced);
     }
     catch (const std::exception &e)
     {

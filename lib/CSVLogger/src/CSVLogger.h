@@ -15,6 +15,7 @@ public:
     configReader *configurationManager;
     String *handledLoggingMessage;
     uint8_t *loggingFlag;
+    uint8_t *bufferStoreFlag;
     unsigned long log_interval;
 
     void init();
@@ -24,7 +25,9 @@ public:
     bool logJsonArray(String filename, String timestampISO, String data);
     bool setLogInterval(unsigned long interval);
     unsigned long getLogInterval();
+
     String readLogFile(String filename);
+    String readLogFile(String filename, String *storageMem);
 };
 
 #endif // CSVLOGGER_H

@@ -14,6 +14,10 @@
 #include "esp_attr.h"
 #include <time.h>
 #include <RTClib.h>
+#include <map>
+#include <vector>
+
+#define MAX_BATCH 10 // maximum buffer sending batch once a time
 
 #if defined USE_SD_LOG
 #include <SDStorage.h>
@@ -100,6 +104,19 @@ public:
 class TMRInstrumentWeb
 {
 private:
+    struct UpdateEntry
+    {
+        String timestamp;
+        String value;
+    };
+
+    struct TagEntry
+    {
+        String path;
+        std::vector<UpdateEntry> updates;
+    };
+
+    std::map<String, TagEntry> entries;
     /* data */
 public:
     String _host = "",
@@ -124,6 +141,9 @@ public:
     bool reqWorkSpace();
     String createQuotedText(String text);
     bool parseAndBuildJSON(const String &data, String Timestamp, String &outputPayload);
+
+    int sendBatch(String tagName, TagEntry &tEntry, int start, int count);
+    int processCSV(String *csvContent, String timezone);
 };
 
 class configReader
@@ -171,6 +191,7 @@ public:
     String getNTPServer();
 
     void RTCSync();
+    void RTCSync(byte *syncFlag);
 
     HardwareSerial *_modbusPort;
     int getSerialMode();
@@ -209,12 +230,13 @@ private:
 public:
     uint16_t (*registers)[4];
     uint16_t *registerCount;
-    void manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag);
+    void manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag, uint8_t *bufferFlag);
     void deepSleep(unsigned long durationMinute);
     void resetRegisterScheduler(ModbusRTU *_modbusInstance, uint64_t slaveAddress, uint16_t regOffset, uint16_t regAddr);
 
     void timeComparison(uint16_t *tCur, uint16_t *tLast, byte *flag);
     void resetRegisterByFlag(ModbusRTU *_modbusInstance, byte *flag, uint16_t nufOfreg);
+    bool sendBuffer(TMRInstrumentWeb *cloud, configReader *conf, String *dataToSend);
 };
 
 #endif // TMR_sensor_h

@@ -114,8 +114,30 @@ void SDStorage::removeDir(fs::FS &fs, const char *path)
     }
 }
 
-void SDStorage::readFile(fs::FS &fs, const char *path)
+String SDStorage::readFile(fs::FS &fs, const char *path)
 {
+    // with this function uses more memory alocation because "buffer" variable below
+    String buffer = "";
+    Serial.printf("Reading file: %s\n", path);
+    File file = fs.open(path);
+    if (!file)
+    {
+        Serial.println("Failed to open file for reading");
+        return "";
+    }
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    Serial.print("Read from file: ");
+    while (file.available())
+    {
+        buffer += file.readString();
+    }
+    file.close();
+    return buffer;
+}
+
+void SDStorage::readFile(fs::FS &fs, const char *path, String *readMemReturn)
+{
+    // with this function it uses a String pointer to reduce memory usage
     Serial.printf("Reading file: %s\n", path);
     File file = fs.open(path);
     if (!file)
@@ -123,11 +145,11 @@ void SDStorage::readFile(fs::FS &fs, const char *path)
         Serial.println("Failed to open file for reading");
         return;
     }
-
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     Serial.print("Read from file: ");
     while (file.available())
     {
-        Serial.write(file.read());
+        *readMemReturn += file.readString();
     }
     file.close();
 }

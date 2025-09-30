@@ -309,8 +309,10 @@ threadStart:
     last_SN = remote->_SN;
     file.close();
     Serial.println("Device SN: " + remote->_SN);
+    remote->is_thread_run = true;
+    remote->thread_enable = true;
     remote->begin(MQTT_BROKER, MQTT_PORT, remote->_SN.c_str());
-    while (true)
+    while (true && remote->thread_enable == true)
     {
         if (last_SN != remote->_SN)
         {
@@ -351,7 +353,7 @@ threadStart:
                     }
                 }
 
-                if (millis() - t1 >= 1000)
+                if (millis() - t1 >= 2000)
                 {
                     String topic;
                     bool status;
@@ -396,4 +398,5 @@ threadStart:
 
         vTaskDelay(100);
     }
+    remote->is_thread_run = false;
 }

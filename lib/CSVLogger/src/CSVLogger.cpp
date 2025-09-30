@@ -69,7 +69,13 @@ unsigned long CSVLogger::getLogInterval()
 }
 String CSVLogger::readLogFile(String filename)
 {
-    return "";
+    return this->microSD->readFile(this->microSD->card, filename.c_str());
+}
+String CSVLogger::readLogFile(String filename, String *storageMem)
+{
+    // with this function it uses a String pointer to reduce memory usage
+    this->microSD->readFile(this->microSD->card, filename.c_str(), storageMem);
+    return "1";
 }
 
 void CSVLogger::startThread(uint32_t stackSize, UBaseType_t priority, BaseType_t core)
@@ -124,6 +130,12 @@ void CSVLogger::run(void *parameter)
                 {
                     logger->logJsonArray(filename, ISOTimestamp, *logger->handledLoggingMessage);
                     *logger->loggingFlag = 0;
+                }
+                if (logger->handledLoggingMessage->length() > 10 && *logger->bufferStoreFlag == 1)
+                {
+                    logger->logJsonArray("/TMRBuffer.csv", ISOTimestamp, *logger->handledLoggingMessage);
+                    *logger->bufferStoreFlag = 0;
+                    Serial.println("failed to sending data, data stored to buffer!");
                 }
             }
         }
