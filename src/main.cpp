@@ -286,6 +286,8 @@ unlicensed:
     if (systemScheduler.sendBuffer(&cloud, &sensorConfigurator, &bufferData))
     {
       logger.microSD->deleteFile(logger.microSD->card, "/TMRBuffer.csv");
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+      logger.microSD->writeFile(logger.microSD->card, "/TMRBuffer.csv", "");
     }
 
     systemScheduler.manage(networkManager.globalMessage,
