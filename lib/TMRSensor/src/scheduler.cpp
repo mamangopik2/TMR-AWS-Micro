@@ -8,9 +8,11 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
     bool status;
     if (conf->getCloudInterval().toInt() >= 5) // if the sending interval > 5 minutes, activate sleep mode
     {
-        Serial.println("> 5 minutes");
-        if (RTCMinuteTimeTotal % conf->getCloudInterval().toInt() == 0)
+        Serial.println("sending interval > 5 minutes");
+        if (RTCMinuteTimeTotal % conf->getCloudInterval().toInt() == 0 && lastTimeMinuteSend != RTCMinuteTimeTotal) // if sending time is occur
         {
+            lastTimeMinuteSend = RTCMinuteTimeTotal;
+            Serial.println("time to sending data");
             Serial.print("sending, Timesource :");
             Serial.println(conf->getTimeSource());
             *logFlag = 1;
@@ -21,31 +23,51 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
             if ((freeHeap / 1024) <= 100)
             {
                 Serial.println("Not Enough Free Heap");
+                *bufferFlag = 1;
+                vTaskDelay(10000); // add some delay before going sleep, because the logger have it's own loop cycle
                 ESP.restart();
             }
-            status = cloud->publishBulk(*data, conf->getISOTimeRTC());
-            if (millis() - networkManager->getBeaconTime() > (1 * 60 * 1000)) // activate sleep after 10 minutes from client finished configuration
+            status = cloud->publishBulk(*data, conf->getISOTimeRTC()); // send sensor data
+            Serial.print("Beacon time :");
+            Serial.println((millis() - networkManager->getBeaconTime()) / 60 / 1000);
+            Serial.print("Timeout after page closed :");
+            Serial.println(5);
+            if (millis() - networkManager->getBeaconTime() > (5 * 60 * 1000)) // activate sleep after 5 minutes configuration page closed
             {
-                if (status == true)
+                if (status) // if success sending sensor data
                 {
                     Serial.println("deep sleep");
-                    deepSleep(conf->getCloudInterval().toInt() - *runUpTimeMinute);
+                    deepSleep(conf->getCloudInterval().toInt() - *runUpTimeMinute); // deep sleep
                 }
-                else
+                else // otherwise save sensor data into buffer file
                 {
-                    *bufferFlag = 0;
+                    *bufferFlag = 1; // set flag for buffer log
+                    *clockMinute = 0;
+                    vTaskDelay(10000); // add some delay before going sleep, because the logger have it's own loop cycle
+                    Serial.println("deep sleep");
+                    deepSleep(conf->getCloudInterval().toInt() - *runUpTimeMinute); // deep sleep
+                }
+            }
+            else // send if user still on the page
+            {
+                Serial.println("not sleep because the configartion page still opened");
+                if (!status)
+                {
+                    *bufferFlag = 1;
                     *clockMinute = 0;
                 }
             }
-            else
-            {
-                *clockMinute = 0;
-            }
+        }
+        else
+        {
+            Serial.print("Waiting time remain : ");
+            Serial.print(conf->getCloudInterval().toInt() - (RTCMinuteTimeTotal % conf->getCloudInterval().toInt()));
+            Serial.println(" minutes ahead");
         }
     }
     else
     {
-        //  send every x minutes without sleep();
+        //  send every 1 minutes without sleep();
         if (*clockMinute >= conf->getCloudInterval().toInt())
         {
             if (conf->getTimeSource() == "NTP")
@@ -58,6 +80,8 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
                 if ((freeHeap / 1024) <= 100)
                 {
                     Serial.println("Not Enough Free Heap");
+                    *bufferFlag = 1;
+                    vTaskDelay(10000);
                     ESP.restart();
                 }
                 status = cloud->publishBulk(*data, conf->getISOTimeNTP());
@@ -76,6 +100,7 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
                 if ((freeHeap / 1024) <= 100)
                 {
                     Serial.println("Not Enough Free Heap");
+                    vTaskDelay(10000);
                     ESP.restart();
                 }
                 status = cloud->publishBulk(*data, conf->getISOTimeRTC());
@@ -94,36 +119,6 @@ void scheduler::resetRegisterScheduler(ModbusRTU *_modbusInstance, uint64_t slav
     // reset the register scheduler
     uint16_t val = 0;
     _modbusInstance->writeHreg(slaveAddress, regOffset + regAddr, &val);
-}
-
-int getYearFromUnix(unsigned long unixTime)
-{
-    unsigned long secondsInYear = 31556926UL; // average seconds per year (365.2422 days)
-    return 1970 + (unixTime / secondsInYear);
-}
-
-int getMonthFromUnix(unsigned long unixTime)
-{
-    unsigned long secondsInMonth = 2629743UL;    // average seconds per month (30.436875 days)
-    return (unixTime / secondsInMonth) % 12 + 1; // +1 to convert from 0-11 to 1-12
-}
-
-int getDayFromUnix(unsigned long unixTime)
-{
-    unsigned long secondsInDay = 86400UL;      // seconds in a day
-    return (unixTime / secondsInDay) % 31 + 1; // +1 to convert from 0-30 to 1-31
-}
-
-int getHourFromUnix(unsigned long unixTime)
-{
-    unsigned long secondsInHour = 3600UL;   // seconds in an hour
-    return (unixTime / secondsInHour) % 24; // returns 0-23
-}
-
-int getMinuteFromUnix(unsigned long unixTime)
-{
-    unsigned long secondsInMinute = 60UL;     // seconds in a minute
-    return (unixTime / secondsInMinute) % 60; // returns 0-59
 }
 
 void scheduler::resetRegisterByFlag(ModbusRTU *_modbusInstance, byte *flag, uint16_t nufOfreg)
@@ -202,12 +197,16 @@ void scheduler::deepSleep(unsigned long durationMinute)
 
 bool scheduler::sendBuffer(TMRInstrumentWeb *cloud, configReader *conf, String *dataToSend)
 {
-    if (conf->getMinute() % 2 == 0) /// adjust the timer to trigger buffer sending cycle
+    uint16_t RTCMinute = conf->getMinute();
+    Serial.print("RTC Minute Time:");
+    Serial.println(RTCMinute);
+    Serial.print("Time condition:");
+    Serial.println(RTCMinute >= 50);
+
+    if (RTCMinute >= 50 && RTCMinute <= 55) /// adjust the timer to trigger buffer sending cycle
     {
         Serial.println("saatnya kirim buffer");
-
         int statusSendingBuffer = 0;
-        Serial.println(*dataToSend);
         if (dataToSend->length() > 10)
         {
             Serial.println("mengirim buffer");
@@ -220,7 +219,11 @@ bool scheduler::sendBuffer(TMRInstrumentWeb *cloud, configReader *conf, String *
             {
                 tz += "+" + conf->getTimeZone() + ":00";
             }
+
+            /// cut the full string =============
+
             statusSendingBuffer = cloud->processCSV(dataToSend, tz);
+            // ==============================================
             if (statusSendingBuffer > 0)
             {
 
@@ -236,5 +239,9 @@ bool scheduler::sendBuffer(TMRInstrumentWeb *cloud, configReader *conf, String *
             Serial.println("buffer kosong");
             return false;
         }
+    }
+    else
+    {
+        return false;
     }
 }

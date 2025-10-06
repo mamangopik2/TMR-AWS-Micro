@@ -28,6 +28,10 @@ public:
     void testFileIO(fs::FS &fs, const char *path);
     bool fileExists(String filename);
     void readFile(fs::FS &fs, const char *path, String *readMemReturn);
+    void copyFile(fs::FS &fs, const char *masterFile, const char *resultFile);
+    void copyFileByLines(fs::FS &fs, const char *masterFile, const char *resultFile, uint32_t numOfLines);
+    void substractFile(fs::FS &fs, const char *masterFile, const char *substractor);
+    uint32_t contentCount(fs::FS &fs, const char *path);
 };
 #endif
 

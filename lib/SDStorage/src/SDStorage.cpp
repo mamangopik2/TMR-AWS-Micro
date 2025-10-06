@@ -6,7 +6,7 @@
 #endif
 void SDStorage::init()
 {
-    if (!SD_MMC.begin("/sdcard", false, false, 100000, 5U))
+    if (!SD_MMC.begin("/sdcard", false, false, 2000000, 5U))
     {
         Serial.println("Card Mount Failed");
         return;
@@ -139,7 +139,9 @@ void SDStorage::readFile(fs::FS &fs, const char *path, String *readMemReturn)
 {
     // with this function it uses a String pointer to reduce memory usage
     Serial.printf("Reading file: %s\n", path);
-    File file = fs.open(path);
+    File file = fs.open(path, "r");
+    file.setTimeout(5000);
+    file.setBufferSize(1024);
     if (!file)
     {
         Serial.println("Failed to open file for reading");
@@ -149,7 +151,7 @@ void SDStorage::readFile(fs::FS &fs, const char *path, String *readMemReturn)
     Serial.print("Read from file: ");
     while (file.available())
     {
-        *readMemReturn += file.readString();
+        *readMemReturn += String((char)file.read());
     }
     file.close();
 }
@@ -270,6 +272,146 @@ void SDStorage::testFileIO(fs::FS &fs, const char *path)
 bool SDStorage::fileExists(String filename)
 {
     return SD_MMC.exists(filename.c_str());
+}
+
+void SDStorage::copyFile(fs::FS &fs, const char *masterFile, const char *resultFile)
+{
+    Serial.printf("Copy file: %s\n", masterFile);
+    Serial.printf("To file: %s\n", resultFile);
+    File file = fs.open(masterFile, "r");
+    file.setTimeout(5000);
+    file.setBufferSize(32);
+
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
+    File copy = fs.open(resultFile, "w", true);
+    copy.setTimeout(5000);
+    copy.setBufferSize(32);
+    if (!file)
+    {
+        Serial.println("Failed to open file for reading");
+        return;
+    }
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    Serial.print("Read from file: ");
+    while (file.available())
+    {
+        char charToWrite = (char)file.read();
+        copy.print(charToWrite);
+    }
+    file.close();
+    copy.close();
+}
+
+void SDStorage::copyFileByLines(fs::FS &fs, const char *masterFile, const char *resultFile, uint32_t numOfLines)
+{
+    uint32_t linesFound = 0;
+    Serial.printf("Copy file: %s\n", masterFile);
+    Serial.printf("To file: %s\n", resultFile);
+    File file = fs.open(masterFile, "r");
+    file.setTimeout(5000);
+    file.setBufferSize(32);
+
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
+    File copy = fs.open(resultFile, "w", true);
+    copy.setTimeout(5000);
+    copy.setBufferSize(32);
+    if (!file)
+    {
+        Serial.println("Failed to open file for reading");
+        return;
+    }
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    Serial.print("Read from file: ");
+    while (file.available())
+    {
+        char charToWrite = (char)file.read();
+        copy.print(charToWrite);
+        if (charToWrite == '\n')
+        {
+            linesFound++;
+        }
+        if (linesFound >= numOfLines)
+        {
+            break;
+        }
+    }
+    file.close();
+    copy.close();
+}
+void SDStorage::substractFile(fs::FS &fs, const char *masterFile, const char *substractor)
+{
+    File master = fs.open(masterFile, "r");
+    File sbFile = fs.open(substractor, "r");
+    File temporaryResult = fs.open("/subTMP.csv", "w", true);
+
+    bool subIsBlank = false;
+
+    master.setTimeout(5000);
+    sbFile.setTimeout(5000);
+    temporaryResult.setTimeout(5000);
+    master.setBufferSize(512);
+    sbFile.setBufferSize(512);
+    temporaryResult.setBufferSize(512);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    String masterLine = "";
+    String sbFileLine = "";
+    while (master.available())
+    {
+        masterLine = master.readStringUntil('\n');
+        masterLine += '\n';
+        if (!subIsBlank)
+        {
+            sbFileLine += sbFile.readStringUntil('\n');
+            sbFileLine += '\n';
+            if (sbFileLine.length() < 10)
+            {
+                subIsBlank = true;
+            }
+        }
+        else
+        {
+            sbFileLine = "";
+        }
+        Serial.print("master:");
+        Serial.println(masterLine);
+        Serial.print("sbustractor:");
+        Serial.println(sbFileLine);
+        if (masterLine == sbFileLine) // if the line is same, then don't write into the result file
+        {
+            masterLine = "";
+            sbFileLine = "";
+        }
+        else
+        {
+            temporaryResult.print(masterLine); // print the unmatch lines with the original data from master file
+        }
+    }
+    temporaryResult.close();
+    master.close();
+    sbFile.close();
+    this->deleteFile(fs, masterFile);
+    this->copyFile(fs, "/subTMP.csv", masterFile);
+}
+
+uint32_t SDStorage::contentCount(fs::FS &fs, const char *path)
+{
+    uint32_t cnt = 0;
+    File file = fs.open(path, "r");
+    file.setTimeout(2000);
+    file.setBufferSize(32);
+    if (!file)
+    {
+        Serial.println("Failed to open file for counting");
+        return cnt;
+    }
+    while (file.available())
+    {
+        cnt++;
+    }
+    file.close();
+    return cnt;
 }
 
 #endif

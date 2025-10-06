@@ -385,7 +385,7 @@ int TMRInstrumentWeb::processCSV(String *csvContent, String timezone)
         }
         entries[tag].updates.push_back(ue);
     }
-
+    *csvContent = ""; // clear the memory
     // ==== batching per tag ====
     for (auto &kv : entries)
     {

@@ -228,6 +228,7 @@ class scheduler
 {
 private:
 public:
+    uint32_t lastTimeMinuteSend = 0;
     uint16_t (*registers)[4];
     uint16_t *registerCount;
     void manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag, uint8_t *bufferFlag);
