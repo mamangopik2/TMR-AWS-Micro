@@ -114,77 +114,93 @@ void scheduler::manage(String *data, configReader *conf, wifiManager *networkMan
     }
 }
 
-void scheduler::resetRegisterScheduler(ModbusRTU *_modbusInstance, uint64_t slaveAddress, uint16_t regOffset, uint16_t regAddr)
+void scheduler::checkRegReset(configReader *conf, ModbusRTU *_modbusInstance)
 {
-    // reset the register scheduler
-    uint16_t val = 0;
-    _modbusInstance->writeHreg(slaveAddress, regOffset + regAddr, &val);
-}
+    uint32_t absoluteMinuteTime;
+    absoluteMinuteTime = (conf->getHour() * 60) + conf->getMinute();
 
-void scheduler::resetRegisterByFlag(ModbusRTU *_modbusInstance, byte *flag, uint16_t nufOfreg)
-{
-    Serial.print("registerCount:");
-    Serial.println(nufOfreg);
-    for (uint16_t i = 0; i < nufOfreg; i++)
+    if (absoluteMinuteTime % 1440 == 0)
     {
-        // Serial.print("Register Lists: ");
-        // Serial.print("Slave ID: ");
-        // Serial.print(registers[i][0]);
-        // Serial.print(" Reg Offset: ");
-        // Serial.print(registers[i][1]);
-        // Serial.print(" Reg Addr: ");
-        // Serial.print(registers[i][2]);
-        // Serial.print(" Reset Routine: ");
-
-        // if (registers[i][3] == RST_NONE)
-        // {
-        //     Serial.println("No Reset Routine");
-        //     continue; // skip if no reset routine
-        // }
-        // else if (registers[i][3] == RST_MINUTELY)
-        // {
-        //     Serial.println("Minutely Reset Routine");
-        // }
-        // else if (registers[i][3] == RST_HOURLY)
-        // {
-        //     Serial.println("Hourly Reset Routine");
-        // }
-        // else if (registers[i][3] == RST_DAILY)
-        // {
-        //     Serial.println("Daily Reset Routine");
-        // }
-        // else if (registers[i][3] == RST_MONTHLY)
-        // {
-        //     Serial.println("Monthly Reset Routine");
-        // }
-        // else if (registers[i][3] == RST_YEARLY)
-        // {
-        //     Serial.println("Yearly Reset Routine");
-        // }
-
-        if (*flag == 1)
+        if (lastDailyReset != absoluteMinuteTime)
         {
-            resetRegisterScheduler(_modbusInstance, registers[i][0], registers[i][1], registers[i][2]);
+            this->resetRegisterByMode(_modbusInstance, RST_DAILY, conf->modbusRegistersCount);
+            lastDailyReset = absoluteMinuteTime;
         }
     }
-    *flag = 0;
+    else if (absoluteMinuteTime % 60 == 0)
+    {
+        if (lastHourlyReset != absoluteMinuteTime)
+        {
+            this->resetRegisterByMode(_modbusInstance, RST_HOURLY, conf->modbusRegistersCount);
+            lastHourlyReset = absoluteMinuteTime;
+        }
+    }
+    else if (absoluteMinuteTime % 5 == 0)
+    {
+        if (lastMinutelyReset != absoluteMinuteTime)
+        {
+            this->resetRegisterByMode(_modbusInstance, RST_MINUTELY, conf->modbusRegistersCount);
+            lastMinutelyReset = absoluteMinuteTime;
+        }
+    }
+    else
+    {
+        NULL;
+    }
 }
 
-void scheduler::timeComparison(uint16_t *tCur, uint16_t *tLast, byte *flag)
+void scheduler::resetRegisterByMode(ModbusRTU *_modbusInstance, uint8_t mode, uint16_t numOfReg)
 {
-    if (*tLast == 0)
+    Serial.print("registerCount:");
+    Serial.println(numOfReg);
+    for (uint16_t i = 0; i < numOfReg; i++)
     {
-        *tLast = *tCur;
+        Serial.print("Register Lists: ");
+        Serial.print("Slave ID: ");
+        Serial.print(registers[i][0]);
+        Serial.print(" Reg Offset: ");
+        Serial.print(registers[i][1]);
+        Serial.print(" Reg Addr: ");
+        Serial.print(registers[i][2]);
+        Serial.print(" Reset Routine: ");
+
+        if (registers[i][3] == RST_NONE)
+        {
+            Serial.println("No Reset Routine");
+            continue; // skip if no reset routine
+        }
+        else if (registers[i][3] == RST_MINUTELY)
+        {
+            Serial.println("Minutely Reset Routine");
+        }
+        else if (registers[i][3] == RST_HOURLY)
+        {
+            Serial.println("Hourly Reset Routine");
+        }
+        else if (registers[i][3] == RST_DAILY)
+        {
+            Serial.println("Daily Reset Routine");
+        }
+        else if (registers[i][3] == RST_MONTHLY)
+        {
+            Serial.println("Monthly Reset Routine");
+        }
+        else if (registers[i][3] == RST_YEARLY)
+        {
+            Serial.println("Yearly Reset Routine");
+        }
+
+        Serial.print("reset status:");
+        Serial.println(mode == registers[i][3]);
+        if (mode == registers[i][3])
+        {
+            Serial.println("Register RESET is RUN");
+            uint16_t val = 0;
+            _modbusInstance->writeHreg(registers[i][0], registers[i][1] + registers[i][2], &val);
+            _modbusInstance->task();
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+        }
     }
-    Serial.print("Current:");
-    Serial.print(*tCur);
-    Serial.print(" Last:");
-    Serial.println(*tLast);
-    if (*tCur < *tLast)
-    {
-        *flag = 1;
-    }
-    *tLast = *tCur;
 }
 
 void scheduler::deepSleep(unsigned long durationMinute)
@@ -195,7 +211,7 @@ void scheduler::deepSleep(unsigned long durationMinute)
     esp_deep_sleep_start();
 }
 
-bool scheduler::sendBuffer(TMRInstrumentWeb *cloud, configReader *conf, String *dataToSend)
+bool scheduler::sendBuffer(TMRInstrumentWeb *cloud, configReader *conf)
 {
     uint16_t RTCMinute = conf->getMinute();
     Serial.print("RTC Minute Time:");
@@ -205,38 +221,49 @@ bool scheduler::sendBuffer(TMRInstrumentWeb *cloud, configReader *conf, String *
 
     if (RTCMinute >= 50 && RTCMinute <= 55) /// adjust the timer to trigger buffer sending cycle
     {
-        Serial.println("saatnya kirim buffer");
         int statusSendingBuffer = 0;
-        if (dataToSend->length() > 10)
+        Serial.println("saatnya kirim buffer");
+
+        if (microSD->fileExists("/TMRBuffer.csv"))
         {
-            Serial.println("mengirim buffer");
-            String tz = "";
-            if (conf->getTimeZone().toInt() < 10)
+            microSD->copyFileByLines(microSD->card, "/TMRBuffer.csv", "/sendTMP.csv", 30);
+            String bufferData = "";
+            microSD->readFile(microSD->card, "/sendTMP.csv", &bufferData);
+
+            if (bufferData.length() > 10)
             {
-                tz += "+0" + conf->getTimeZone() + ":00";
+                Serial.println("mengirim buffer");
+                String tz = "";
+                if (conf->getTimeZone().toInt() < 10)
+                {
+                    tz += "+0" + conf->getTimeZone() + ":00";
+                }
+                else
+                {
+                    tz += "+" + conf->getTimeZone() + ":00";
+                }
+                statusSendingBuffer = cloud->processCSV(&bufferData, tz);
+                if (statusSendingBuffer > 0)
+                {
+                    microSD->substractFile(microSD->card, "/TMRBuffer.csv", "/sendTMP.csv");
+                    microSD->deleteFile(microSD->card, "/sendTMP.csv");
+                    return true;
+                }
+                else
+                {
+                    microSD->deleteFile(microSD->card, "/sendTMP.csv");
+                    return false;
+                }
             }
             else
             {
-                tz += "+" + conf->getTimeZone() + ":00";
-            }
-
-            /// cut the full string =============
-
-            statusSendingBuffer = cloud->processCSV(dataToSend, tz);
-            // ==============================================
-            if (statusSendingBuffer > 0)
-            {
-
-                return true;
-            }
-            else
-            {
+                Serial.println("buffer kosong");
                 return false;
             }
         }
         else
         {
-            Serial.println("buffer kosong");
+            microSD->writeFile(microSD->card, "/TMRBuffer.csv", "");
             return false;
         }
     }

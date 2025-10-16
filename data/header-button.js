@@ -37,6 +37,7 @@ document.getElementById("dropdown-buttons").innerHTML =
     <button id="button_network">NETWORK</button>
     <button id="button_interfaces">MODBUS MASTER</button>
     <button id="button_sensors">ADD SENSORS</button>
+    <button id="button_math">ADD MATH</button>
     <button id="button_site_setup">SITE SETUP</button>
     <button id="button_time_setup">TIME SETUP</button>
     <button id="button_cloud_setup">CLOUD SETUP</button>
@@ -47,6 +48,7 @@ document.getElementById("dropdown-buttons").innerHTML =
 // Navigation
 document.getElementById("button_network").onclick = () => window.location = base_url + '/net-form.html';
 document.getElementById("button_sensors").onclick = () => window.location = base_url + '/sensors.html';
+document.getElementById("button_math").onclick = () => window.location = base_url + '/math.html';
 document.getElementById("button_interfaces").onclick = () => window.location = base_url + '/interfaces.html';
 document.getElementById("button_site_setup").onclick = () => window.location = base_url + '/site_setup.html';
 document.getElementById("button_time_setup").onclick = () => window.location = base_url + '/time_setup.html';

@@ -100,6 +100,7 @@ public:
     void handleGetPassword();
     void handleActiveSensors();
     void handleMathFunctions();
+    void deleteFile();
 
     unsigned long getBeaconTime();
 

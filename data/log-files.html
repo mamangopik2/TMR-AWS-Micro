@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Device Info</title>
+    <title>Logged Files</title>
     <link rel="stylesheet" href="style.css">
     <style>
         table {
@@ -31,6 +31,7 @@
             margin-bottom: 20px;
         }
     </style>
+
 </head>
 
 <body>
@@ -41,8 +42,9 @@
     </div>
     <script src="header-button.js"></script>
 
-    <div class="container">
-        <h2>Device Information</h2>
+
+    <div class="container" id="container">
+        <h2>Logged Files</h2>
         <img src="logo.png" alt="TMR logo">
 
         <table id="informationTable">
@@ -51,6 +53,7 @@
                     <th>No</th>
                     <th>Filename</th>
                     <th>Date</th>
+                    <th>Delete</th>
                 </tr>
             </thead>
             <tbody>
@@ -59,13 +62,20 @@
         </table>
     </div>
 
+    <div id="loading"
+        style="background-color:#222;width: 100%;height: 100%;position: absolute;top: 0;left: 0;z-index: 5;display: block;">
+        <h1 style="text-align: center;color: #ccc;">Loading</h1>
+    </div>
+
     <script src="beacon.js"></script>
     <script>
         const base_url = window.location.origin;
         const urlRead = base_url + '/logger-list';
         const sensorTableBody = document.getElementById("informationTable").querySelector("tbody");
-
+        var showLoading = false;
         function filenameToDate(filename) {
+            filename = filename.replace(".csv", "");
+            console.log(filename);
             const dateMatch = filename.match(/(\d{4}-\d{2}-\d{2})/);
 
             if (dateMatch) {
@@ -85,7 +95,7 @@
                 return filename;
             }
         }
-        function fetchWithTimeout(resource, options = {}) {
+        async function fetchWithTimeout(resource, options = {}) {
             const { timeout = 1000 } = options;
 
             return Promise.race([
@@ -96,25 +106,70 @@
             ]);
         }
 
-        function loadLoggedFiles() {
+        async function loadLoggedFiles() {
             fetchWithTimeout(urlRead, { timeout: 10000 })
                 .then(response => response.json())
                 .then(data => {
                     console.log(data);
                     sensorTableBody.innerHTML = "";
                     data.filename.forEach((element, index) => {
-                        // let fileURL = `${base_url}/load-logging-file?filename=${element}`;
                         let fileURL = `${base_url}/${element}`;
                         const row = document.createElement("tr");
-                        row.innerHTML = `
-                            <td>${index + 1}</td>
-                            <td><a href="${fileURL}">${element}</a></td>
-                            <td>${filenameToDate(element)}</td>
-                        `;
-                        sensorTableBody.appendChild(row);
+
+                        if (element === '/TMRBuffer.csv') {
+                            row.innerHTML = `
+                                <td>${index + 1}</td>
+                                <td><a href="${fileURL}">${element}</a></td>
+                                <td>${filenameToDate(element)}</td>
+                                <td><span >Reserved</span></td>
+                            `;
+                            sensorTableBody.appendChild(row);
+                        } else {
+                            row.innerHTML = `
+                                <td>${index + 1}</td>
+                                <td><a href="${fileURL}">${element}</a></td>
+                                <td>${filenameToDate(element)}</td>
+                                <td><span id="dlt-${element}">Delete</span></td>
+                            `;
+                            sensorTableBody.appendChild(row);
+                        }
+
+                        try {
+
+                            document.getElementById(`dlt-${element}`).onclick = () => {
+                                console.log("Delete button clicked", element);
+
+                                // Ask for confirmation before deleting
+                                const confirmDelete = confirm(`Are you sure you want to delete "${element}"?`);
+                                if (!confirmDelete) {
+                                    console.log("Delete canceled by user");
+                                    return; // Stop if user cancels
+                                }
+
+                                showLoading = true;
+
+                                const link = `${base_url}/remove-file?filename=${element}`;
+                                fetch(link)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        console.log(data);
+                                        setTimeout(() => {
+                                            showLoading = false;
+                                            alert(`File "${element}" deleted successfully.`);
+                                            loadLoggedFiles(); // Refresh the file list after deletion
+                                        }, 3000);
+                                    })
+                                    .catch(error => {
+                                        showLoading = false;
+                                        console.error("Error deleting file:", error);
+                                        alert("Error deleting file. Check console for details.");
+                                    });
+                            };
+                        } catch (error) {
+                            console.log("Error setting delete handler:", error);
+                        }
                     });
-                    // for (var key in data) {
-                    // }
+
                 })
                 .catch(error => {
                     console.error("Fetch error:", error.message);
@@ -124,6 +179,19 @@
 
         // Load immediately and then every 2 seconds
         loadLoggedFiles();
+
+
+        setInterval(async () => {
+            if (showLoading == true) {
+                document.getElementById("loading").style.display = "block";
+                document.getElementById("container").style.display = "none";
+
+            } else {
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("container").style.display = "block";
+            }
+        }, 1000);
+
 
         // Navigation
         document.getElementById("button_network").onclick = () => window.location = base_url + '/net-form.html';

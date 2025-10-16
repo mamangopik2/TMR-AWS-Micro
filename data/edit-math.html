@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Math Operation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dropdown" style="position: absolute; top: 0; left: 2%;">
+        <button class="dropdown-button">&#9776;</button>
+        <div class="dropdown-content" id="dropdown-buttons"></div>
+    </div>
+    <script src="header-button.js"></script>
+
+    <div class="container">
+        <h2>Edit or Delete Math Operation</h2>
+        <img src="logo.png" alt="TMR logo">
+
+        <label for="formula_name">Formula Name</label>
+        <input type="text" name="formula_name" id="formula_name" placeholder="Formula">
+
+        <label for="operand1">Data Source 1</label>
+        <select name="operand1" id="operand1">
+            <option value="NULL">SELECT</option>
+            <option value="sensors">Sensors Channel</option>
+            <option value="constant">Insert constant</option>
+        </select>
+
+        <div id="operand1_sensor">
+            <label for="operand1_sensor_select">Select Sensor Channel</label>
+            <select name="operand1_sensor_select" id="operand1_sensor_select">
+                <option value="NULL">SELECT</option>
+            </select>
+        </div>
+
+        <div id="operand1_constant">
+            <label for="operand1_constant_input">Insert Constant Value</label>
+            <input type="text" id="operand1_constant_input" placeholder="Constant Value">
+        </div>
+
+        <label for="operator">Math Operation</label>
+        <select name="operator" id="operator">
+            <option value="+">Addition</option>
+            <option value="-">Subtraction</option>
+            <option value="x">Multiplication</option>
+            <option value="/">Division</option>
+        </select>
+
+        <label for="operand2">Data Source 2</label>
+        <select name="operand2" id="operand2">
+            <option value="NULL">SELECT</option>
+            <option value="sensors">Sensors Channel</option>
+            <option value="constant">Insert constant</option>
+        </select>
+
+        <div id="operand2_sensor">
+            <label for="operand2_sensor_select">Select Sensor Channel</label>
+            <select name="operand2_sensor_select" id="operand2_sensor_select">
+                <option value="NULL">SELECT</option>
+            </select>
+        </div>
+
+        <div id="operand2_constant">
+            <label for="operand2_constant_input">Insert Constant Value</label>
+            <input type="text" id="operand2_constant_input" placeholder="Constant Value">
+        </div>
+
+        <div id="equation_preview" style="color: white; margin-top: 20px; font-weight: bold;"></div>
+
+        <button id="button_cancel" style="background-color: rgb(200, 191, 191);">CANCEL</button>
+        <button id="button_save">UPDATE</button>
+        <button id="button_delete" style="background-color: red;">DELETE</button>
+    </div>
+
+    <script src="beacon.js"></script>
+    <script>
+        const base_url = window.location.origin;
+
+        const formula_name = document.getElementById('formula_name');
+        const operand1_selector = document.getElementById('operand1');
+        const operand2_selector = document.getElementById('operand2');
+        const operator_selector = document.getElementById('operator');
+
+        const button_save = document.getElementById('button_save');
+        const button_cancel = document.getElementById('button_cancel');
+        const button_delete = document.getElementById('button_delete');
+        const eq_preview = document.getElementById('equation_preview');
+
+        const operand1_sensor = document.getElementById('operand1_sensor');
+        const operand2_sensor = document.getElementById('operand2_sensor');
+        const operand1_constant = document.getElementById('operand1_constant');
+        const operand2_constant = document.getElementById('operand2_constant');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        var index = urlParams.get("index");
+
+        let urlScan = base_url + '/active-sensors';
+        fetch(urlScan)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Active Sensors:', data);
+                let sensors = data.sensors;
+                let sensor1_select = document.getElementById('operand1_sensor_select');
+                let sensor2_select = document.getElementById('operand2_sensor_select');
+
+                sensors.forEach(sensor => {
+                    let option1 = document.createElement('option');
+                    option1.value = sensor.tag_name;
+                    option1.text = sensor.tag_name;
+                    sensor1_select.appendChild(option1);
+
+                    let option2 = document.createElement('option');
+                    option2.value = sensor.tag_name;
+                    option2.text = sensor.tag_name;
+                    sensor2_select.appendChild(option2);
+                });
+            });
+
+        // Hide all operand sections initially
+        operand1_sensor.style.display = "none";
+        operand2_sensor.style.display = "none";
+        operand1_constant.style.display = "none";
+        operand2_constant.style.display = "none";
+
+        const alterDisplay = () => {
+            // Show/hide operand1 input
+            if (operand1_selector.value == "sensors") {
+                document.getElementById('operand1_sensor').style.display = "block";
+                document.getElementById('operand1_constant').style.display = "none";
+            } else if (operand1_selector.value == "constant") {
+                document.getElementById('operand1_constant').style.display = "block";
+                document.getElementById('operand1_sensor').style.display = "none";
+            } else {
+                document.getElementById('operand1_constant').style.display = "none";
+                document.getElementById('operand1_sensor').style.display = "none";
+            }
+
+            // Show/hide operand2 input
+            if (operand2_selector.value == "sensors") {
+                document.getElementById('operand2_sensor').style.display = "block";
+                document.getElementById('operand2_constant').style.display = "none";
+            } else if (operand2_selector.value == "constant") {
+                document.getElementById('operand2_constant').style.display = "block";
+                document.getElementById('operand2_sensor').style.display = "none";
+            } else {
+                document.getElementById('operand2_constant').style.display = "none";
+                document.getElementById('operand2_sensor').style.display = "none";
+            }
+
+            // Build preview correctly (use AND `&&`)
+            let preview = "Please select both data sources and enter a formula name";
+
+            if (operand1_selector.value == 'sensors' && operand2_selector.value == 'sensors') {
+                preview = `${formula_name.value} <b>=</b> ${document.getElementById('operand1_sensor_select').value} <b>${operator_selector.value}</b> ${document.getElementById('operand2_sensor_select').value}`;
+            } else if (operand1_selector.value == 'sensors' && operand2_selector.value == 'constant') {
+                preview = `${formula_name.value} <b>=</b> ${document.getElementById('operand1_sensor_select').value} <b>${operator_selector.value}</b> ${document.getElementById('operand2_constant_input').value}`;
+            } else if (operand1_selector.value == 'constant' && operand2_selector.value == 'sensors') {
+                preview = `${formula_name.value} <b>=</b> ${document.getElementById('operand1_constant_input').value} <b>${operator_selector.value}</b> ${document.getElementById('operand2_sensor_select').value}`;
+            } else if (operand1_selector.value == 'constant' && operand2_selector.value == 'constant') {
+                preview = `${formula_name.value} <b>=</b> ${document.getElementById('operand1_constant_input').value} <b>${operator_selector.value}</b> ${document.getElementById('operand2_constant_input').value}`;
+            }
+
+            document.getElementById('equation_preview').innerHTML = preview;
+        };
+
+        operand1_selector.addEventListener("change", alterDisplay);
+        operand2_selector.addEventListener("change", alterDisplay);
+        operator_selector.addEventListener("change", alterDisplay);
+        document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', alterDisplay));
+
+        // Fetch all sensors for operand selection
+        fetch(base_url + '/list-sensor')
+            .then(res => res.json())
+            .then(data => {
+                console.log(data.sensor);
+                var formulaName = data.sensor[parseInt(index)];
+                document.getElementById('formula_name').value = data.sensor[parseInt(index)].tag_name;
+                // document.getElementById('operand1').value = data.sensor[parseInt(index)].operand1.type;
+                // document.getElementById('operand2').value = data.sensor[parseInt(index)].operand2.type;
+                // document.getElementById('operator').value = data.sensor[parseInt(index)].operator;
+            });
+
+        // Load existing MATH-type sensor for editing
+        document.addEventListener("DOMContentLoaded", async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const index = parseInt(urlParams.get("index")) || 0;
+
+            try {
+                const response = await fetch(`${base_url}/list-sensor`);
+                const data = await response.json();
+
+                // Only show sensors with phy == "MATH"
+                const mathSensors = (data.sensors || []).filter(s => s.phy === "MATH");
+                const sensor = mathSensors[index];
+                if (!sensor) return;
+
+                formula_name.value = sensor.tag || "";
+                operator_selector.value = sensor.operator || "+";
+
+                // Operand 1
+                if (sensor.operand1_type === "sensors") {
+                    operand1_selector.value = "sensors";
+                    operand1_sensor.style.display = "block";
+                    document.getElementById('operand1_sensor_select').value = sensor.operand1_value;
+                } else {
+                    operand1_selector.value = "constant";
+                    operand1_constant.style.display = "block";
+                    document.getElementById('operand1_constant_input').value = sensor.operand1_value;
+                }
+
+                // Operand 2
+                if (sensor.operand2_type === "sensors") {
+                    operand2_selector.value = "sensors";
+                    operand2_sensor.style.display = "block";
+                    document.getElementById('operand2_sensor_select').value = sensor.operand2_value;
+                } else {
+                    operand2_selector.value = "constant";
+                    operand2_constant.style.display = "block";
+                    document.getElementById('operand2_constant_input').value = sensor.operand2_value;
+                }
+
+                alterDisplay();
+            } catch (err) {
+                console.error("Failed to load MATH sensor:", err);
+            }
+        });
+
+        // Update
+        button_save.addEventListener("click", async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const index = parseInt(urlParams.get("index")) || 0;
+
+            const response = await fetch(`${base_url}/list-sensor`);
+            const data = await response.json();
+            const sensors = data.sensors || [];
+
+            const mathSensors = sensors.filter(s => s.phy === "MATH");
+            const sensor = mathSensors[index];
+            if (!sensor) return alert("Invalid MATH sensor index");
+
+            sensor.tag = formula_name.value.trim();
+            sensor.operator = operator_selector.value;
+            sensor.operand1_type = operand1_selector.value;
+            sensor.operand1_value = operand1_selector.value === "sensors"
+                ? document.getElementById('operand1_sensor_select').value
+                : document.getElementById('operand1_constant_input').value;
+            sensor.operand2_type = operand2_selector.value;
+            sensor.operand2_value = operand2_selector.value === "sensors"
+                ? document.getElementById('operand2_sensor_select').value
+                : document.getElementById('operand2_constant_input').value;
+
+            // Save entire sensors list
+            const saveRes = await fetch(`${base_url}/update-sensor`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sensors })
+            });
+
+            if (saveRes.ok) {
+                alert("MATH formula updated successfully!");
+                window.close();
+            } else alert("Failed to save.");
+        });
+
+        // Delete
+        button_delete.addEventListener("click", async () => {
+            if (!confirm("Delete this MATH operation?")) return;
+            const urlParams = new URLSearchParams(window.location.search);
+            const index = parseInt(urlParams.get("index")) || 0;
+
+            const response = await fetch(`${base_url}/list-sensor`);
+            const data = await response.json();
+            const sensors = data.sensors || [];
+
+            // Remove only that MATH item by matching the same order in filtered list
+            let count = -1;
+            const filtered = sensors.filter(s => {
+                if (s.phy === "MATH") count++;
+                return !(s.phy === "MATH" && count === index);
+            });
+
+            const delRes = await fetch(`${base_url}/update-sensor`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sensors: filtered })
+            });
+
+            if (delRes.ok) {
+                alert("MATH formula deleted!");
+                window.close();
+            } else alert("Failed to delete.");
+        });
+
+        button_cancel.onclick = () => window.close();
+
+        // Run once on load
+        window.addEventListener('DOMContentLoaded', alterDisplay);
+
+        // Update preview when inputs change
+        operand1_selector.addEventListener('change', alterDisplay);
+        operand2_selector.addEventListener('change', alterDisplay);
+        operator_selector.addEventListener('change', alterDisplay);
+        formula_name.addEventListener('input', alterDisplay);
+        document.getElementById('operand1_sensor_select').addEventListener('change', alterDisplay);
+        document.getElementById('operand2_sensor_select').addEventListener('change', alterDisplay);
+        document.getElementById('operand1_constant_input').addEventListener('input', alterDisplay);
+        document.getElementById('operand2_constant_input').addEventListener('input', alterDisplay);
+    </script>
+</body>
+
+</html>

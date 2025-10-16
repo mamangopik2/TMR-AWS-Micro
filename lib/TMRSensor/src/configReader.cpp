@@ -130,8 +130,14 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
                 bigEndian = false;
 
             // debuger.debug(String(phy));
-            if (String(phy) == "modbus")
+            if (String(phy) == "modbus" && regType == COIL)
             {
+                Serial.print("Reading Coil Register: ");
+                sensorData = sensManager.readCoilRegister(String(EU), String(RU), getSiteInfo() + String(tag), mbInterface, atoi(device_id), atoi(reg));
+            }
+            if (String(phy) == "modbus" && (regType == HREG || regType == IREG))
+            {
+                Serial.print("Reading Modbus Sensor: ");
                 if (String(calibration_mode) == "1") // kFactor
                 {
                     // ////Serial.println("with KF");
@@ -238,6 +244,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             {
                 sensorData = sensManager.readDigital(String(EU), String(RU), getSiteInfo() + String(tag), atoi(di_ch));
             }
+            vTaskDelay(200);
         }
         else
         {
@@ -249,7 +256,7 @@ String configReader::getSensorsValue(sensorManager &sensManager, modbusSensor &m
             const char *operation = sensor["operator"];
 
             sensorData = "{";
-            sensorData += "\"tag_name\":\"" + String(tag) + "\",";
+            sensorData += "\"tag_name\":\"" + getSiteInfo() + String(tag) + "\",";
             sensorData += "\"phy\":{\"channel\":\"MATH\"},";
             sensorData += "\"operator\":\"" + String(operation) + "\",";
             sensorData += "\"operand1\":{";
@@ -859,37 +866,4 @@ void configReader::checkRTCUpdate(bool *RTCUpdateFlag, wifiManager *netmanager)
         doc.clear();
         *RTCUpdateFlag = false;
     }
-}
-
-bool configReader::postSensors(const char *json, TMRInstrumentWeb *cloud)
-{
-    // return cloud->publishBulk(json);
-
-    // uint32_t cntSuccess = 0;
-    // DynamicJsonDocument doc(1024);
-
-    // DeserializationError error = deserializeJson(doc, json);
-    // if (error)
-    // {
-    //     ////Serial.print("Failed to parse JSON: ");
-    //     ////Serial.println(error.f_str());
-    //     return false;
-    // }
-
-    // JsonArray sensors = doc["sensors"];
-    // for (JsonObject sensor : sensors)
-    // {
-    //     const char *tagName = sensor["tag_name"];
-    //     float scaled = sensor["value"]["scaled"];
-
-    //     // Call your cloud publishing function
-    //     if (cloud->publish(tagName, String(scaled)) == 1)
-    //     {
-    //         cntSuccess++;
-    //     }
-    // }
-    // if (cntSuccess > 0)
-    //     return true;
-    // else
-    //     return false;
 }

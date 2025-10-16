@@ -374,10 +374,10 @@ void SDStorage::substractFile(fs::FS &fs, const char *masterFile, const char *su
         {
             sbFileLine = "";
         }
-        Serial.print("master:");
-        Serial.println(masterLine);
-        Serial.print("sbustractor:");
-        Serial.println(sbFileLine);
+        // Serial.print("master:");
+        // Serial.println(masterLine);
+        // Serial.print("sbustractor:");
+        // Serial.println(sbFileLine);
         if (masterLine == sbFileLine) // if the line is same, then don't write into the result file
         {
             masterLine = "";
@@ -393,6 +393,7 @@ void SDStorage::substractFile(fs::FS &fs, const char *masterFile, const char *su
     sbFile.close();
     this->deleteFile(fs, masterFile);
     this->copyFile(fs, "/subTMP.csv", masterFile);
+    this->deleteFile(fs, "/subTMP.csv");
 }
 
 uint32_t SDStorage::contentCount(fs::FS &fs, const char *path)

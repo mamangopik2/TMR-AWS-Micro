@@ -243,16 +243,20 @@ String sensorManager::readModbus(String EU, String RU, String tagName3, modbusSe
 void sensorManager::initAnalog(adsGain_t gain)
 {
     Wire.begin(21, 22);
-    _ADCInterface = new Adafruit_ADS1015;
-    _ADCInterface->setGain(gain);
-    _ADCInterface->begin();
+    _ADCInterface1 = new Adafruit_ADS1015;
+    _ADCInterface1->setGain(gain);
+    _ADCInterface1->begin();
 }
-void sensorManager::initAnalog(uint8_t address, adsGain_t gain)
+void sensorManager::initAnalog(uint8_t address1, uint8_t address2, adsGain_t gain)
 {
     Wire.begin(21, 22);
-    _ADCInterface = new Adafruit_ADS1015;
-    _ADCInterface->setGain(gain);
-    _ADCInterface->begin(address, &Wire);
+    _ADCInterface1 = new Adafruit_ADS1015;
+    _ADCInterface1->setGain(gain);
+    _ADCInterface1->begin(address1, &Wire);
+
+    _ADCInterface2 = new Adafruit_ADS1015;
+    _ADCInterface2->setGain(gain);
+    _ADCInterface2->begin(address2, &Wire);
 }
 
 String sensorManager::readAnalog_KF(String EU, String RU, String tagName1, uint8_t channel, float kFactor, float ofset)
@@ -266,8 +270,8 @@ String sensorManager::readAnalog_KF(String EU, String RU, String tagName1, uint8
         // CH1
         try
         {
-            results = _ADCInterface->readADC_Differential_0_1();
-            sensor_mV = _ADCInterface->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
+            results = _ADCInterface1->readADC_Differential_0_1();
+            sensor_mV = _ADCInterface1->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
         }
         catch (const std::exception &e)
         {
@@ -280,8 +284,34 @@ String sensorManager::readAnalog_KF(String EU, String RU, String tagName1, uint8
         // CH2
         try
         {
-            results = _ADCInterface->readADC_Differential_2_3();
-            sensor_mV = _ADCInterface->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
+            results = _ADCInterface1->readADC_Differential_2_3();
+            sensor_mV = _ADCInterface1->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
+        }
+        catch (const std::exception &e)
+        {
+            results = 0;     // Handle the exception by setting results to a default value
+            sensor_mV = 0.0; // Set a default value for sensor_mV in case of an error
+        }
+        break;
+    case 3:
+        // CH3
+        try
+        {
+            results = _ADCInterface2->readADC_Differential_0_1();
+            sensor_mV = _ADCInterface2->computeVolts(results) * licenseManager->getKFactor(3).toFloat();
+        }
+        catch (const std::exception &e)
+        {
+            results = 0;     // Handle the exception by setting results to a default value
+            sensor_mV = 0.0; // Set a default value for sensor_mV in case of an error
+        }
+        break;
+    case 4:
+        // CH4
+        try
+        {
+            results = _ADCInterface2->readADC_Differential_2_3();
+            sensor_mV = _ADCInterface2->computeVolts(results) * licenseManager->getKFactor(4).toFloat();
         }
         catch (const std::exception &e)
         {
@@ -311,8 +341,8 @@ String sensorManager::readAnalog_S(String EU, String RU, String tagName2, uint8_
         // CH1
         try
         {
-            results = _ADCInterface->readADC_Differential_0_1();
-            sensor_mV = _ADCInterface->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
+            results = _ADCInterface1->readADC_Differential_0_1();
+            sensor_mV = _ADCInterface1->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
         }
         catch (const std::exception &e)
         {
@@ -325,8 +355,34 @@ String sensorManager::readAnalog_S(String EU, String RU, String tagName2, uint8_
         // CH2
         try
         {
-            results = _ADCInterface->readADC_Differential_2_3();
-            sensor_mV = _ADCInterface->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
+            results = _ADCInterface1->readADC_Differential_2_3();
+            sensor_mV = _ADCInterface1->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
+        }
+        catch (const std::exception &e)
+        {
+            results = 0;     // Handle the exception by setting results to a default value
+            sensor_mV = 0.0; // Set a default value for sensor_mV in case of an error
+        }
+        break;
+    case 3:
+        // CH3
+        try
+        {
+            results = _ADCInterface2->readADC_Differential_0_1();
+            sensor_mV = _ADCInterface2->computeVolts(results) * licenseManager->getKFactor(3).toFloat();
+        }
+        catch (const std::exception &e)
+        {
+            results = 0;     // Handle the exception by setting results to a default value
+            sensor_mV = 0.0; // Set a default value for sensor_mV in case of an error
+        }
+        break;
+    case 4:
+        // CH4
+        try
+        {
+            results = _ADCInterface2->readADC_Differential_2_3();
+            sensor_mV = _ADCInterface2->computeVolts(results) * licenseManager->getKFactor(4).toFloat();
         }
         catch (const std::exception &e)
         {
@@ -355,8 +411,8 @@ String sensorManager::readAnalog_MAP(String EU, String RU, String tagName2, uint
         // CH1
         try
         {
-            results = _ADCInterface->readADC_Differential_0_1();
-            sensor_mV = _ADCInterface->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
+            results = _ADCInterface1->readADC_Differential_0_1();
+            sensor_mV = _ADCInterface1->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
         }
         catch (const std::exception &e)
         {
@@ -369,8 +425,34 @@ String sensorManager::readAnalog_MAP(String EU, String RU, String tagName2, uint
         // CH2
         try
         {
-            results = _ADCInterface->readADC_Differential_2_3();
-            sensor_mV = _ADCInterface->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
+            results = _ADCInterface1->readADC_Differential_2_3();
+            sensor_mV = _ADCInterface1->computeVolts(results) * licenseManager->getKFactor(1).toFloat();
+        }
+        catch (const std::exception &e)
+        {
+            results = 0;     // Handle the exception by setting results to a default value
+            sensor_mV = 0.0; // Set a default value for sensor_mV in case of an error
+        }
+        break;
+    case 3:
+        // CH3
+        try
+        {
+            results = _ADCInterface2->readADC_Differential_0_1();
+            sensor_mV = _ADCInterface2->computeVolts(results) * licenseManager->getKFactor(3).toFloat();
+        }
+        catch (const std::exception &e)
+        {
+            results = 0;     // Handle the exception by setting results to a default value
+            sensor_mV = 0.0; // Set a default value for sensor_mV in case of an error
+        }
+        break;
+    case 4:
+        // CH4
+        try
+        {
+            results = _ADCInterface2->readADC_Differential_2_3();
+            sensor_mV = _ADCInterface2->computeVolts(results) * licenseManager->getKFactor(4).toFloat();
         }
         catch (const std::exception &e)
         {
@@ -387,6 +469,16 @@ String sensorManager::readAnalog_MAP(String EU, String RU, String tagName2, uint
                        sensor_mV +
                        ",\"scaled\":" + String(calibrated, 4) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
     return returnVal;
+}
+
+String sensorManager::readCoilRegister(String EU, String RU, String tagNameCoil, modbusSensor modbus, uint32_t deviceID, uint16_t regAddr)
+{
+    bool data = modbus.readCoil(deviceID, regAddr);
+    String returnVal = "{\"tag_name\":\"" + tagNameCoil + "\","
+                                                          "\"value\":{\"unscaled\":" +
+                       String(data) +
+                       ",\"scaled\":" + String(data) + "},\"eng_unit\":\"" + EU + "\",\"raw_unit\":\"" + RU + "\"}";
+    return String(returnVal);
 }
 
 String sensorManager::readDigital(String EU, String RU, String tagName, uint8_t channel)
@@ -425,44 +517,16 @@ void sensorManager::readRawAnalog()
     int16_t results;
     /* Be sure to update this value based on the IC and the gain settings! */
     float multiplier = 0.125;
-    results = _ADCInterface->readADC_Differential_0_1();
-    sensor_mV = (_ADCInterface->computeVolts(results)) * licenseManager->getKFactor(0).toFloat();
+    results = _ADCInterface1->readADC_Differential_0_1();
+    sensor_mV = (_ADCInterface1->computeVolts(results)) * licenseManager->getKFactor(0).toFloat();
     analogReadData[0] = sensor_mV; // Store the read value in the analogReadData array
-    results = _ADCInterface->readADC_Differential_2_3();
-    sensor_mV = (_ADCInterface->computeVolts(results)) * licenseManager->getKFactor(1).toFloat();
+    results = _ADCInterface1->readADC_Differential_2_3();
+    sensor_mV = (_ADCInterface1->computeVolts(results)) * licenseManager->getKFactor(1).toFloat();
     analogReadData[1] = sensor_mV; // Store the read value in the analogReadData array
+    results = _ADCInterface2->readADC_Differential_0_1();
+    sensor_mV = (_ADCInterface2->computeVolts(results)) * licenseManager->getKFactor(2).toFloat();
+    analogReadData[2] = sensor_mV; // Store the read value in the analogReadData array
+    results = _ADCInterface2->readADC_Differential_2_3();
+    sensor_mV = (_ADCInterface2->computeVolts(results)) * licenseManager->getKFactor(3).toFloat();
+    analogReadData[3] = sensor_mV; // Store the read value in the analogReadData array
 }
-
-// // Static task entry point
-// void sensorManager::run(void *parameter)
-// {
-//     unsigned long t0 = millis();
-//     sensorManager *analogReader = static_cast<sensorManager *>(parameter);
-
-//     while (true)
-//     {
-//         if (analogReader != nullptr)
-//         {
-//             analogReader->readRawAnalog(); // read the raw analog data
-//         }
-//         else
-//         {
-//             Serial.println("Error: sensorManager instance is null.");
-//         }
-//         vTaskDelay(100 / portTICK_PERIOD_MS); // Delay to allow other tasks to run
-//     }
-// }
-
-// void sensorManager::startThread(uint32_t stackSize, UBaseType_t priority, BaseType_t core)
-// {
-//     TaskHandle_t taskHandle;
-//     xTaskCreatePinnedToCore(
-//         sensorManager::run,    // Function
-//         "Task Sensor Manager", // Name
-//         stackSize,             // Stack size in words (not bytes)
-//         this,                  // Task input parameter
-//         priority,              // Task priority
-//         &taskHandle,           // Task handle
-//         core                   // Core ID
-//     );
-// }

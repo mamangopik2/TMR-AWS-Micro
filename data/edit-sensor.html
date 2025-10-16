@@ -74,11 +74,9 @@
             <label for="modbus_reset_routine">Register Reset Routine</label>
             <select id="modbus_reset_routine" name="modbus_reset_routine">
                 <option value="NONE">NONE</option>
-                <option value="MINUTELY">Every 1 Minute</option>
+                <option value="MINUTELY">Every 5 Minute</option>
                 <option value="HOURLY">Every 1 Hour</option>
                 <option value="DAILY">Everyday</option>
-                <option value="MONTHLY">Every Month</option>
-                <option value="YEARLY">Every Year</option>
                 <!-- add more types if needed -->
             </select>
 
@@ -89,6 +87,8 @@
                 <option value="NULL">SELECT</option>
                 <option value="1">Channel 1</option>
                 <option value="2">Channel 2</option>
+                <option value="3">Channel 3</option>
+                <option value="4">Channel 4</option>
             </select>
         </div>
         <div id="di_properties">
@@ -327,6 +327,7 @@
 
 
     document.addEventListener("DOMContentLoaded", async function () {
+        console.log("Document loaded, fetching sensor data...");
         const urlParams = new URLSearchParams(window.location.search);
         const index = parseInt(urlParams.get("index")) || 0; // Default to 0 if not given
 

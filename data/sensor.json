@@ -1,18 +1,18 @@
 {
     "sensor": [
         {
-            "tag_name": "AWLR",
+            "tag_name": "TMP.AWS",
             "phy": {
                 "channel": "analog"
             },
             "calibration": {
                 "calibration_mode": "1",
                 "offset": "0",
-                "readout_min": "0",
-                "readout_max": "65535",
-                "actual_min": "0",
-                "actual_max": "65535",
-                "k_factor": "1",
+                "readout_min": "",
+                "readout_max": "",
+                "actual_min": "",
+                "actual_max": "",
+                "k_factor": "0.1",
                 "sensitivity": ""
             },
             "modbus": {
@@ -22,7 +22,71 @@
                 "modbus_reg_type": "HREG",
                 "modbus_dtype": "UINT16",
                 "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
+                "modbus_reset_routine": "NONE"
+            },
+            "digital": {
+                "di_ch": "NULL"
+            },
+            "analog": {
+                "ai_ch": "3"
+            },
+            "engineering_unit": "° Celcius",
+            "raw_unit": "NA"
+        },
+        {
+            "tag_name": "HUMI.AWS",
+            "phy": {
+                "channel": "analog"
+            },
+            "calibration": {
+                "calibration_mode": "1",
+                "offset": "0",
+                "readout_min": "",
+                "readout_max": "",
+                "actual_min": "",
+                "actual_max": "",
+                "k_factor": "0.1",
+                "sensitivity": ""
+            },
+            "modbus": {
+                "modbus_device_id": "1",
+                "modbus_reg": "0",
+                "modbus_offset": "1",
+                "modbus_reg_type": "HREG",
+                "modbus_dtype": "UINT16",
+                "big_endian": "FALSE"
+            },
+            "digital": {
+                "di_ch": "NULL"
+            },
+            "analog": {
+                "ai_ch": "2"
+            },
+            "engineering_unit": "%RH",
+            "raw_unit": "NA"
+        },
+        {
+            "tag_name": "PYRANO1.AWS",
+            "phy": {
+                "channel": "analog"
+            },
+            "calibration": {
+                "calibration_mode": "1",
+                "offset": "0",
+                "readout_min": "",
+                "readout_max": "",
+                "actual_min": "",
+                "actual_max": "",
+                "k_factor": "100",
+                "sensitivity": ""
+            },
+            "modbus": {
+                "modbus_device_id": "2",
+                "modbus_reg": "0",
+                "modbus_offset": "0",
+                "modbus_reg_type": "HREG",
+                "modbus_dtype": "UINT16",
+                "big_endian": "FALSE"
             },
             "digital": {
                 "di_ch": "NULL"
@@ -30,74 +94,8 @@
             "analog": {
                 "ai_ch": "1"
             },
-            "engineering_unit": "V",
-            "raw_unit": "V"
-        },
-        {
-            "tag_name": "Temperature",
-            "phy": {
-                "channel": "modbus"
-            },
-            "calibration": {
-                "calibration_mode": "3",
-                "offset": "0",
-                "readout_min": "0",
-                "readout_max": "65535",
-                "actual_min": "0",
-                "actual_max": "100",
-                "k_factor": "",
-                "sensitivity": ""
-            },
-            "modbus": {
-                "modbus_reg": "4",
-                "modbus_offset": "0",
-                "modbus_reg_type": "HREG",
-                "modbus_dtype": "UINT16",
-                "modbus_device_id": "1",
-                "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
-            },
-            "digital": {
-                "di_ch": "NULL"
-            },
-            "analog": {
-                "ai_ch": "NULL"
-            },
-            "engineering_unit": "C",
-            "raw_unit": "DiGIT"
-        },
-        {
-            "tag_name": "s0",
-            "phy": {
-                "channel": "modbus"
-            },
-            "calibration": {
-                "calibration_mode": "3",
-                "offset": "0",
-                "readout_min": "0",
-                "readout_max": "65535",
-                "actual_min": "0",
-                "actual_max": "100",
-                "k_factor": "",
-                "sensitivity": ""
-            },
-            "modbus": {
-                "modbus_device_id": "1",
-                "modbus_reg": "5",
-                "modbus_offset": "0",
-                "modbus_reg_type": "HREG",
-                "modbus_dtype": "UINT16",
-                "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
-            },
-            "digital": {
-                "di_ch": "NULL"
-            },
-            "analog": {
-                "ai_ch": "NULL"
-            },
-            "engineering_unit": "%RH",
-            "raw_unit": "DiGIT"
+            "engineering_unit": "W/m2",
+            "raw_unit": "NA"
         },
         {
             "tag_name": "s1",
@@ -111,7 +109,7 @@
                 "readout_max": "",
                 "actual_min": "",
                 "actual_max": "",
-                "k_factor": "1",
+                "k_factor": "20",
                 "sensitivity": ""
             },
             "modbus": {
@@ -121,7 +119,7 @@
                 "modbus_dtype": "UINT16",
                 "modbus_device_id": "1",
                 "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
+                "modbus_reset_routine": "NONE"
             },
             "digital": {
                 "di_ch": "NULL"
@@ -129,7 +127,7 @@
             "analog": {
                 "ai_ch": "1"
             },
-            "engineering_unit": "V",
+            "engineering_unit": "NA",
             "raw_unit": "V"
         },
         {
@@ -144,7 +142,7 @@
                 "readout_max": "",
                 "actual_min": "",
                 "actual_max": "",
-                "k_factor": "1",
+                "k_factor": "20",
                 "sensitivity": ""
             },
             "modbus": {
@@ -154,15 +152,15 @@
                 "modbus_dtype": "UINT16",
                 "modbus_device_id": "1",
                 "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
+                "modbus_reset_routine": "NONE"
             },
             "digital": {
                 "di_ch": "NULL"
             },
             "analog": {
-                "ai_ch": "2"
+                "ai_ch": "1"
             },
-            "engineering_unit": "V",
+            "engineering_unit": "NA",
             "raw_unit": "V"
         },
         {
@@ -177,7 +175,7 @@
                 "readout_max": "",
                 "actual_min": "",
                 "actual_max": "",
-                "k_factor": "1",
+                "k_factor": "20",
                 "sensitivity": ""
             },
             "modbus": {
@@ -187,48 +185,15 @@
                 "modbus_dtype": "UINT16",
                 "modbus_device_id": "1",
                 "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
+                "modbus_reset_routine": "NONE"
             },
             "digital": {
                 "di_ch": "NULL"
             },
             "analog": {
-                "ai_ch": "2"
+                "ai_ch": "1"
             },
-            "engineering_unit": "V",
-            "raw_unit": "V"
-        },
-        {
-            "tag_name": "s3",
-            "phy": {
-                "channel": "analog"
-            },
-            "calibration": {
-                "calibration_mode": "1",
-                "offset": "0",
-                "readout_min": "",
-                "readout_max": "",
-                "actual_min": "",
-                "actual_max": "",
-                "k_factor": "1",
-                "sensitivity": ""
-            },
-            "modbus": {
-                "modbus_reg": "0",
-                "modbus_offset": "0",
-                "modbus_reg_type": "HREG",
-                "modbus_dtype": "UINT16",
-                "modbus_device_id": "1",
-                "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
-            },
-            "digital": {
-                "di_ch": "NULL"
-            },
-            "analog": {
-                "ai_ch": "2"
-            },
-            "engineering_unit": "V",
+            "engineering_unit": "NA",
             "raw_unit": "V"
         },
         {
@@ -243,9 +208,8 @@
                 "readout_max": "",
                 "actual_min": "",
                 "actual_max": "",
-                "k_factor": "1",
-                "sensitivity": "",
-                "modbus_reset_routine": "MINUTELY"
+                "k_factor": "20",
+                "sensitivity": ""
             },
             "modbus": {
                 "modbus_reg": "0",
@@ -254,15 +218,15 @@
                 "modbus_dtype": "UINT16",
                 "modbus_device_id": "1",
                 "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
+                "modbus_reset_routine": "NONE"
             },
             "digital": {
                 "di_ch": "NULL"
             },
             "analog": {
-                "ai_ch": "2"
+                "ai_ch": "1"
             },
-            "engineering_unit": "V",
+            "engineering_unit": "NA",
             "raw_unit": "V"
         },
         {
@@ -277,7 +241,7 @@
                 "readout_max": "",
                 "actual_min": "",
                 "actual_max": "",
-                "k_factor": "1",
+                "k_factor": "20",
                 "sensitivity": ""
             },
             "modbus": {
@@ -287,21 +251,51 @@
                 "modbus_dtype": "UINT16",
                 "modbus_device_id": "1",
                 "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
+                "modbus_reset_routine": "NONE"
             },
             "digital": {
                 "di_ch": "NULL"
             },
             "analog": {
-                "ai_ch": "2"
+                "ai_ch": "1"
             },
-            "engineering_unit": "V",
+            "engineering_unit": "NA",
             "raw_unit": "V"
         },
         {
-            "tag_name": "s6",
+            "tag_name": "test1",
             "phy": {
-                "channel": "analog"
+                "channel": "MATH"
+            },
+            "operator": "x",
+            "operand1": {
+                "type": "sensors",
+                "value": "TST-HO.AWS.1.TMP.AWS"
+            },
+            "operand2": {
+                "type": "sensors",
+                "value": "TST-HO.AWS.1.HUMI.AWS"
+            }
+        },
+        {
+            "tag_name": "test2",
+            "phy": {
+                "channel": "MATH"
+            },
+            "operator": "+",
+            "operand1": {
+                "type": "sensors",
+                "value": "TST-HO.AWS.1.TMP.AWS"
+            },
+            "operand2": {
+                "type": "constant",
+                "value": "12"
+            }
+        },
+        {
+            "tag_name": "coil1",
+            "phy": {
+                "channel": "modbus"
             },
             "calibration": {
                 "calibration_mode": "1",
@@ -314,54 +308,21 @@
                 "sensitivity": ""
             },
             "modbus": {
-                "modbus_reg": "0",
+                "modbus_reg": "1",
                 "modbus_offset": "0",
-                "modbus_reg_type": "HREG",
+                "modbus_reg_type": "COIL",
                 "modbus_dtype": "UINT16",
                 "modbus_device_id": "1",
                 "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
+                "modbus_reset_routine": "NONE"
             },
             "digital": {
                 "di_ch": "NULL"
             },
             "analog": {
-                "ai_ch": "2"
+                "ai_ch": "NULL"
             },
-            "engineering_unit": "V",
-            "raw_unit": "V"
-        },
-        {
-            "tag_name": "s7",
-            "phy": {
-                "channel": "analog"
-            },
-            "calibration": {
-                "calibration_mode": "1",
-                "offset": "0",
-                "readout_min": "",
-                "readout_max": "",
-                "actual_min": "",
-                "actual_max": "",
-                "k_factor": "1",
-                "sensitivity": ""
-            },
-            "modbus": {
-                "modbus_reg": "0",
-                "modbus_offset": "0",
-                "modbus_reg_type": "HREG",
-                "modbus_dtype": "UINT16",
-                "modbus_device_id": "1",
-                "big_endian": "FALSE",
-                "modbus_reset_routine": "MINUTELY"
-            },
-            "digital": {
-                "di_ch": "NULL"
-            },
-            "analog": {
-                "ai_ch": "2"
-            },
-            "engineering_unit": "V",
+            "engineering_unit": "NA",
             "raw_unit": "V"
         }
     ]

@@ -9,6 +9,7 @@
 #include <WiFiClientSecure.h>
 #include <wifiManager.h>
 #include <Wire.h>
+#include <SDStorage.h>
 #include <Adafruit_ADS1X15.h>
 #include <TMRLicenseManager.h>
 #include "esp_attr.h"
@@ -17,7 +18,7 @@
 #include <map>
 #include <vector>
 
-#define MAX_BATCH 10 // maximum buffer sending batch once a time
+#define MAX_BATCH 30 // maximum buffer sending batch once a time
 
 #if defined USE_SD_LOG
 #include <SDStorage.h>
@@ -77,28 +78,25 @@ class sensorManager
 
 private:
     uint32_t registeredSensor = 0;
-    static void run(void *parameter);
 
 public:
-    TMRLicenseManager *licenseManager;
     float analogReadData[4] = {0, 0, 0, 0};
-    Adafruit_ADS1015 *_ADCInterface;
-    sensorManager(/* args */);
+    TMRLicenseManager *licenseManager;
+    Adafruit_ADS1015 *_ADCInterface1;
+    Adafruit_ADS1015 *_ADCInterface2;
 
+    sensorManager();
     String readModbusKF(String EU, String RU, String tagName1, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint16_t offsett, bool bigEndian, float kFactor, float ofset);
     String readModbus(String EU, String RU, String tagName2, modbusSensor modbus, uint32_t deviceID, uint8_t dataType, uint16_t regType, uint16_t regAddr, uint8_t offsett, bool bigEndian, float sensitivity, float ofset);
     String readModbus(String EU, String RU, String tagName3, modbusSensor modbus, uint16_t deviceID, uint16_t dataType, uint8_t regType, uint16_t regAddr, uint32_t offsett, bool bigEndian, float readoutMin, float readoutMax, float actualMin, float actualMax);
-    void initAnalog(uint8_t address, adsGain_t gain);
+    void initAnalog(uint8_t address1, uint8_t address2, adsGain_t gain);
     void initAnalog(adsGain_t gain);
     void readRawAnalog();
     String readAnalog_KF(String EU, String RU, String tagName1, uint8_t channel, float kFactor, float ofset);
     String readAnalog_S(String EU, String RU, String tagName2, uint8_t channel, float sensitivity, float ofset);
     String readAnalog_MAP(String EU, String RU, String tagName2, uint8_t channel, float readoutMin, float readoutMax, float actualMin, float actualMax);
     String readDigital(String EU, String RU, String tagName, uint8_t channel);
-    void startThread(uint32_t stackSize = 4096,
-                     UBaseType_t priority = 1,
-                     BaseType_t core = 1);
-    // String readDigital();
+    String readCoilRegister(String EU, String RU, String tagNameCoil, modbusSensor modbus, uint32_t deviceID, uint16_t regAddr);
 };
 
 class TMRInstrumentWeb
@@ -140,8 +138,6 @@ public:
     void setWorkspace(String id);
     bool reqWorkSpace();
     String createQuotedText(String text);
-    bool parseAndBuildJSON(const String &data, String Timestamp, String &outputPayload);
-
     int sendBatch(String tagName, TagEntry &tEntry, int start, int count);
     int processCSV(String *csvContent, String timezone);
 };
@@ -159,29 +155,28 @@ public:
     };
     */
 
+    unsigned long *currentULPUnixTimestamp; // unused
+    unsigned long *lastULPUnixTimestamp;    // unused
+    unsigned long currentUnixTimestamp = 0; // unused
+
+    HardwareSerial *_modbusPort;
     uint16_t modbusRegistersCount = 0;
-
     RTC_DS1307 *rtcDevice;
-
-    float getSensorValue(JsonArray sensors, const char *tag);
-    unsigned long *currentULPUnixTimestamp;
-    unsigned long *lastULPUnixTimestamp;
-    unsigned long currentUnixTimestamp = 0;
     String _jsonString;
-    String getSensorsValue(sensorManager &sensManager, modbusSensor &mbInterface);
-    void loadFile();
-    void checkUpdate(bool *sensorUpdateFlag);
     String _serialComPropertiesJson;
     String _serialBaudrate;
     String _serialMode;
     String _siteInfo;
     String _timeSetup;
-
     String _cloudSetup;
     String _siteName;
     String _plantName;
     String _deviceName;
     String NTPServer, timezone, timeSource;
+
+    void loadFile();
+    void checkUpdate(bool *sensorUpdateFlag);
+
     void loadSiteInfo();
     void loadTimeInfo();
     void loadCloudInfo();
@@ -193,7 +188,9 @@ public:
     void RTCSync();
     void RTCSync(byte *syncFlag);
 
-    HardwareSerial *_modbusPort;
+    float getSensorValue(JsonArray sensors, const char *tag);
+    String getSensorsValue(sensorManager &sensManager, modbusSensor &mbInterface);
+
     int getSerialMode();
     uint32_t getSerialBaud();
     void loadSerialConfigFile();
@@ -209,7 +206,6 @@ public:
     String getCloudToken();
     String getCloudInterval();
 
-    bool postSensors(const char *json, TMRInstrumentWeb *cloud);
     struct tm timeinfo;
     String getISOTimeNTP();
     String getISOTimeRTC();
@@ -228,16 +224,20 @@ class scheduler
 {
 private:
 public:
+    SDStorage *microSD;
     uint32_t lastTimeMinuteSend = 0;
+    uint32_t lastMinutelyReset = 0;
+    uint32_t lastHourlyReset = 0;
+    uint32_t lastDailyReset = 0;
+
     uint16_t (*registers)[4];
     uint16_t *registerCount;
     void manage(String *data, configReader *conf, wifiManager *networkManager, TMRInstrumentWeb *cloud, uint8_t *runUpTimeMinute, unsigned long *clockMinute, uint8_t *logFlag, uint8_t *bufferFlag);
     void deepSleep(unsigned long durationMinute);
-    void resetRegisterScheduler(ModbusRTU *_modbusInstance, uint64_t slaveAddress, uint16_t regOffset, uint16_t regAddr);
 
-    void timeComparison(uint16_t *tCur, uint16_t *tLast, byte *flag);
-    void resetRegisterByFlag(ModbusRTU *_modbusInstance, byte *flag, uint16_t nufOfreg);
-    bool sendBuffer(TMRInstrumentWeb *cloud, configReader *conf, String *dataToSend);
+    void checkRegReset(configReader *conf, ModbusRTU *_modbusInstance);
+    void resetRegisterByMode(ModbusRTU *_modbusInstance, uint8_t mode, uint16_t numOfReg);
+    bool sendBuffer(TMRInstrumentWeb *cloud, configReader *conf);
 };
 
 #endif // TMR_sensor_h

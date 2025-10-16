@@ -13,49 +13,50 @@
 #include <serialTool.h>
 #include <EEPROM.h>
 
-RTC_DATA_ATTR unsigned long currentULPUnixTimestamp = 0; // store data on RTC memory
-RTC_DATA_ATTR unsigned long ULPminuteTimerCounter = 0;   // store data on RTC memory
-RTC_DATA_ATTR unsigned long ULPHourTimerCounter = 0;     // store data on RTC memory
-RTC_DATA_ATTR unsigned long ULPDayTimerCounter = 0;      // store data on RTC memory
-RTC_DATA_ATTR unsigned long ULPMonthTimerCounter = 0;    // store data on RTC memory
-RTC_DATA_ATTR unsigned long ULPYearTimerCounter = 0;     // store data on RTC memory
+RTC_DATA_ATTR unsigned long ULPminuteTimerCounter = 0; // store data on RTC memory (unused for now)
+RTC_DATA_ATTR unsigned long ULPHourTimerCounter = 0;   // store data on RTC memory (unused for now)
+RTC_DATA_ATTR unsigned long ULPDayTimerCounter = 0;    // store data on RTC memory (unused for now)
+RTC_DATA_ATTR unsigned long ULPMonthTimerCounter = 0;  // store data on RTC memory (unused for now)
+RTC_DATA_ATTR unsigned long ULPYearTimerCounter = 0;   // store data on RTC memory (unused for now)
 
-uint16_t tcnt0 = 0; // second
-uint16_t tcnt1 = 0; // minute
-uint16_t tcnt2 = 0; // hour
-uint16_t tcnt3 = 0; // day
+uint16_t tcnt0 = 0; // second counter
+uint16_t tcnt1 = 0; // minute counter
+uint16_t tcnt2 = 0; // hour counter
+uint16_t tcnt3 = 0; // day counter
 
-byte minRstFlag = 0;
-byte hourRstFlag = 0;
-byte dayRstFlag = 0;
-byte monthRstFlag = 0;
-byte RTCSynced = 0;
+uint32_t lastMinutelyReset = 0;
+uint32_t lastHourlyReset = 0;
+uint32_t lastDailyReset = 0;
 
-uint32_t lastTimeLookup = 0;
+byte minRstFlag = 0;         // minutely reset flag
+byte hourRstFlag = 0;        // hourly reset flag
+byte dayRstFlag = 0;         // daily reset flag
+byte monthRstFlag = 0;       // monthly reset flag
+byte RTCSynced = 0;          // RTC synced flag
+uint8_t readyToLog = 0;      // flag for local logging
+uint8_t writeBufferFlag = 0; // flag for buffer logging
 
-String sensorDataPacket;
-uint8_t secondCounter = 0;
-uint8_t runUpTimeMinute = 2;
-unsigned long minuteCounter = 0;
-unsigned long t0 = 0;
-unsigned long logger_interval = 0;
-uint8_t readyToLog = 0;
-uint8_t writeBufferFlag = 0;
-String fileLists;
-String deviceInfo;
-String jsonString;
-String AIReadData;
+uint8_t secondCounter = 0;       // clock service
+unsigned long minuteCounter = 0; // clock service
+unsigned long t0 = 0;            // clock service
+
+uint8_t runUpTimeMinute = 2; // time to run up before going to sleep
+String fileLists;            // file list payload
+String deviceInfo;           // device info payload
+String jsonString;           // used for device info buffer
+String AIReadData;           // used for utility tool payload
+String sensorDataPacket;     // sensor data payload
 
 modbusSensor ObjMBInstrument;       // define modbus Instrument
 sensorManager ObjInstrumentManager; // define sensor manager
 wifiManager ObjWebUI;               // network Interface Manager
-configReader ObjSensorConfigurator;
-TMRInstrumentWeb ObjCloud;
-scheduler ObjScheduler;
-TMRemoteMQ ObjRemote;
-CSVLogger ObjLogger;
-TMRLicenseManager ObjLicensing;
-serialTool ObjSystemSerial;
+configReader ObjSensorConfigurator; // configuration manager
+TMRInstrumentWeb ObjCloud;          // cloud service manager
+scheduler ObjScheduler;             // time and task scheduler
+TMRemoteMQ ObjRemote;               // remote access
+CSVLogger ObjLogger;                // data logging service
+TMRLicenseManager ObjLicensing;     // license manager
+serialTool ObjSystemSerial;         // system serial communication to utility tool
 
 TaskHandle_t timeTask;
 void clock(void *param)
@@ -122,56 +123,56 @@ void setup()
   ObjSystemSerial.license = &ObjLicensing;                         // set the license manager to the serial tool
   // systemSerial.startThread(4096, 1, 1);
 
-  xTaskCreatePinnedToCore(clock, "time scheduler", 1024, NULL, 6, &timeTask, 1);
+  xTaskCreatePinnedToCore(clock, "time scheduler", 1024, NULL, 6, &timeTask, 1); // run clock service on core 1
 
-  ObjWebUI.microSD = ObjLogger.microSD;
+  ObjWebUI.microSD = ObjLogger.microSD; // set microSD reference to the webUI
+  ObjWebUI.logFilelist = &fileLists;    // set the log file list reference to the webUI
+  ObjWebUI.deviceInfo = &deviceInfo;    // set the device info reference to the webUI
+  ObjWebUI.startThread(4096, 5, 0);     // run webUI on core 0 (paralel)
 
-  ObjWebUI.logFilelist = &fileLists;
-  ObjWebUI.deviceInfo = &deviceInfo;
-  ObjWebUI.startThread(4096, 5, 0);
+  ObjSensorConfigurator.loadFile();               // load sensors conf file from SPIFFS
+  ObjSensorConfigurator.loadSerialConfigFile();   // load serial comm conf file from SPIFFS
+  ObjSensorConfigurator.loadSiteInfo();           // load site conf file from SPIFFS
+  ObjSensorConfigurator.loadTimeInfo();           // load time conf file from SPIFFS
+  ObjSensorConfigurator.loadCloudInfo();          // load ObjCloud conf file from SPIFFS
+  ObjSensorConfigurator.conFigureSerial(&Serial); // execute serial configuration
 
-  ObjSensorConfigurator.loadFile();               // load sensors conf
-  ObjSensorConfigurator.loadSerialConfigFile();   // load serial comm conf
-  ObjSensorConfigurator.loadSiteInfo();           // load site conf
-  ObjSensorConfigurator.loadTimeInfo();           // load time conf
-  ObjSensorConfigurator.loadCloudInfo();          // load ObjCloud conf
-  ObjSensorConfigurator.conFigureSerial(&Serial); // run the configuration
+  ObjRemote.deviceInfo = &deviceInfo;                      // set the device info reference to the remote manager
+  ObjRemote.logFileList = &fileLists;                      // set the log file list reference to the remote manager
+  ObjRemote.setNetManager(&ObjWebUI);                      // set the webUI object to the remote manager
+  ObjRemote.configurationManager = &ObjSensorConfigurator; // set the configuration manager to the remote manager
+  ObjRemote.handledSensorMessage = &sensorDataPacket;      // set the sensor data packet to the remote manager
+  ObjRemote.startThread((16 * 1024), 2, 1);                // run remote manager on core 1 (paralel)
 
-  ObjRemote.deviceInfo = &deviceInfo;
-  ObjRemote.logFileList = &fileLists;
-  ObjRemote.setNetManager(&ObjWebUI);
-  ObjRemote.configurationManager = &ObjSensorConfigurator;
-  ObjRemote.handledSensorMessage = &sensorDataPacket;
-  ObjRemote.startThread((16 * 1024), 4, 1);
+  ObjLogger.init();                                        // init logger object
+  ObjLogger.configurationManager = &ObjSensorConfigurator; // set the configuration manager to the logger
+  ObjLogger.handledLoggingMessage = &sensorDataPacket;     // set the sensor data packet to the logger
+  ObjLogger.loggingFlag = &readyToLog;                     // set the logging flag to the logger
+  ObjLogger.bufferStoreFlag = &writeBufferFlag;            // set the buffer store flag to the logger
+  ObjLogger.startThread(4096, 3, 1);                       // run logger on core 1 (paralel)
 
-  ObjLogger.init();
-  ObjLogger.configurationManager = &ObjSensorConfigurator;
-  ObjLogger.handledLoggingMessage = &sensorDataPacket;
-  ObjLogger.loggingFlag = &readyToLog;
-  ObjLogger.bufferStoreFlag = &writeBufferFlag;
-  ObjLogger.startThread(4096, 1, 1);
+  ObjMBInstrument.init(&Serial2); // init the modbus instrument on Serial2
 
-  ObjMBInstrument.init(&Serial2); // init the modbus instrument
+  ObjCloud.setHost(ObjSensorConfigurator.getCloudHost().c_str()); // set the ObjCloud host address
+  ObjCloud.begin(ObjSensorConfigurator.getCloudToken().c_str());  // asign token with saved token from configuration
 
-  ObjScheduler.registerCount = &ObjSensorConfigurator.modbusRegistersCount; // set the register count to the scheduler
-  ObjScheduler.registers = ObjSensorConfigurator.modbusHREGS;               // set the
+  ObjScheduler.microSD = ObjLogger.microSD; // set the reference CSV logger to the scheduler
 
-  ObjCloud.setHost(ObjSensorConfigurator.getCloudHost().c_str());
-  ObjCloud.begin(ObjSensorConfigurator.getCloudToken().c_str());
-  bool initTime = true;
+  bool initTime = true; // set the initial time update flag to true,for RTC initial
+
   try
   {
-    ObjSensorConfigurator.checkTimeUpdate(&initTime);
-    ObjInstrumentManager.initAnalog(0x48, GAIN_TWOTHIRDS);
+    ObjSensorConfigurator.checkTimeUpdate(&initTime);            // check for time update to sync RTC
+    ObjInstrumentManager.initAnalog(0x48, 0x49, GAIN_TWOTHIRDS); // init ADC
   }
   catch (const std::exception &e)
   {
   }
 
-  ObjCloud.reqWorkSpace();
+  ObjCloud.reqWorkSpace();                                           // request workspaceID using the token
+  ObjCloud.sensorConfiguration = &ObjSensorConfigurator._jsonString; // set the sensor configuration to the ObjCloud
 
-  ObjCloud.sensorConfiguration = &ObjSensorConfigurator._jsonString;
-
+  // I2C Scanner start
   Wire.begin();
   byte error, address;
   int nDevices = 0;
@@ -207,6 +208,8 @@ void setup()
     Serial.println("Done.\n");
 }
 
+// end of I2C scanner
+
 void checkReset(uint16_t *tCur, uint16_t *tLast, byte *flag)
 {
   if (*tLast == 0)
@@ -228,27 +231,7 @@ void loop() // this loop runs on Core1 by default
 {
 testTimer:
   ObjScheduler.registerCount = &ObjSensorConfigurator.modbusRegistersCount; // set the register count to the scheduler
-  ObjScheduler.registers = ObjSensorConfigurator.modbusHREGS;               // set the
-  currentULPUnixTimestamp = ObjSensorConfigurator.getUnixTime();            // set the RTC unix time to the current unix time
-
-  uint16_t tTemp;
-
-  tTemp = ObjSensorConfigurator.getSecond();
-  ObjScheduler.timeComparison(&tTemp, &tcnt0, &minRstFlag);
-
-  tTemp = ObjSensorConfigurator.getMinute();
-  ObjScheduler.timeComparison(&tTemp, &tcnt1, &hourRstFlag);
-
-  tTemp = ObjSensorConfigurator.getHour();
-  ObjScheduler.timeComparison(&tTemp, &tcnt2, &dayRstFlag);
-
-  tTemp = ObjSensorConfigurator.getDay();
-  ObjScheduler.timeComparison(&tTemp, &tcnt3, &monthRstFlag);
-
-  ObjScheduler.resetRegisterByFlag(ObjMBInstrument._modbusInstance, &minRstFlag, ObjSensorConfigurator.modbusRegistersCount);
-  ObjScheduler.resetRegisterByFlag(ObjMBInstrument._modbusInstance, &hourRstFlag, ObjSensorConfigurator.modbusRegistersCount);
-  ObjScheduler.resetRegisterByFlag(ObjMBInstrument._modbusInstance, &dayRstFlag, ObjSensorConfigurator.modbusRegistersCount);
-  ObjScheduler.resetRegisterByFlag(ObjMBInstrument._modbusInstance, &monthRstFlag, ObjSensorConfigurator.modbusRegistersCount);
+  ObjScheduler.registers = ObjSensorConfigurator.modbusHREGS;               // set the holding registers to the scheduler
 
 unlicensed:
   sensorDataPacket = ObjSensorConfigurator.getSensorsValue(ObjInstrumentManager, ObjMBInstrument); // sensor data packet which will be send to the ObjCloud
@@ -260,14 +243,20 @@ unlicensed:
   ObjSensorConfigurator.checkCloudUpdate(&ObjWebUI.cloudUpdated, &ObjCloud);                       // check for update if there any changes on the ObjCloud conf if update occurs then update the ObjCloud setup
   ObjSensorConfigurator.checkRTCUpdate(&ObjWebUI.RTCUpdated, &ObjWebUI);                           // check for update if there any changes on the RTC Configuration update
 
-  // uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
-  // Serial.print("Free Heap: ");
-  // Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
-  // Serial.println(" KB");
+  uint32_t freeHeap = ESP.getFreeHeap(); // returns bytes
+
+  if (freeHeap / 1024.0 < 95)
+  {
+    ESP.restart(); // restart if free heap below 95kB
+  }
+
+  Serial.print("Free Heap: ");
+  Serial.print(freeHeap / 1024.0, 2); // convert to KB with 2 decimal places
+  Serial.println(" KB");
 
   vTaskDelay(3000 / portTICK_PERIOD_MS); // delay
 
-  if (!ObjLicensing.checkLicense())
+  if (!ObjLicensing.checkLicense()) // check for license validity, (for dummy condition it set to true[verified])
   {
     goto unlicensed;
   }
@@ -275,11 +264,13 @@ unlicensed:
   try
   {
 
-    Serial.print(ObjSensorConfigurator.getMinute());
-    Serial.print(" % ");
-    Serial.print(ObjSensorConfigurator.getCloudInterval());
-    Serial.print(" = ");
-    Serial.println(ObjSensorConfigurator.getMinute() % ObjSensorConfigurator.getCloudInterval().toInt());
+    ObjScheduler.checkRegReset(&ObjSensorConfigurator, ObjMBInstrument._modbusInstance);
+    ObjScheduler.manage(ObjWebUI.globalMessage,
+                        &ObjSensorConfigurator,
+                        &ObjWebUI,
+                        &ObjCloud,
+                        &runUpTimeMinute,
+                        &minuteCounter, &readyToLog, &writeBufferFlag);
 
     // the buffer sending mechanism
     // 1. clone n rows from buffer file to TMP file
@@ -288,30 +279,7 @@ unlicensed:
     // 4. substract the buffer with TMP
     // 5. remove TMP file
 
-    // logger.microSD->deleteFile(logger.microSD->card, "/TMRBuffer.csv");
-    // logger.microSD->copyFile(logger.microSD->card, "/DATA_LOG_2025-10-06.csv", "/TMRBuffer.csv");
-    // Serial.println("Wait 10s to ensure the file is ready");
-    // vTaskDelay(10000 / portTICK_PERIOD_MS);
-
-    ObjLogger.microSD->copyFileByLines(ObjLogger.microSD->card, "/TMRBuffer.csv", "/sendTMP.csv", 30);
-    String bufferData = "";
-    ObjLogger.microSD->readFile(ObjLogger.microSD->card, "/sendTMP.csv", &bufferData);
-    if (ObjScheduler.sendBuffer(&ObjCloud, &ObjSensorConfigurator, &bufferData))
-    {
-      ObjLogger.microSD->substractFile(ObjLogger.microSD->card, "/TMRBuffer.csv", "/sendTMP.csv");
-      ObjLogger.microSD->deleteFile(ObjLogger.microSD->card, "/sendTMP.csv");
-    }
-    else
-    {
-      ObjLogger.microSD->deleteFile(ObjLogger.microSD->card, "/sendTMP.csv");
-    }
-
-    ObjScheduler.manage(ObjWebUI.globalMessage,
-                        &ObjSensorConfigurator,
-                        &ObjWebUI,
-                        &ObjCloud,
-                        &runUpTimeMinute,
-                        &minuteCounter, &readyToLog, &writeBufferFlag);
+    ObjScheduler.sendBuffer(&ObjCloud, &ObjSensorConfigurator);
 
     fileLists = ObjLogger.microSD->listDir(SD_MMC, "/", 1);
     deviceInfo = getDeviceInfo();
@@ -331,5 +299,9 @@ unlicensed:
     {
       Serial.println(e.what());
     }
+  }
+  else
+  {
+    RTCSynced = 0; // reset RTC sync flag
   }
 }

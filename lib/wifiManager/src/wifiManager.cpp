@@ -597,6 +597,29 @@ void wifiManager::handleGetPassword()
     RTCJson = server->arg("plain");
     server->send(200, "application/json", ("{\"password\":\"" + _AP_PWD + "\"}"));
 }
+void wifiManager::deleteFile()
+{
+    server->sendHeader("Access-Control-Allow-Origin", "*");
+    server->sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server->sendHeader("Access-Control-Allow-Headers", "Content-Type");
+    String filename = server->arg("filename");
+
+    if (SD_MMC.exists(filename))
+    {
+        if (SD_MMC.remove(filename))
+        {
+            server->send(200, "application/json", ("{\"status\":\"success delete:" + filename + "\"}"));
+        }
+        else
+        {
+            server->send(200, "application/json", ("{\"status\":\"failed delete:" + filename + "\"}"));
+        }
+    }
+    else
+    {
+        server->send(200, "application/json", ("{\"status\":\"file not found:" + filename + "\"}"));
+    }
+}
 
 unsigned long wifiManager::getBeaconTime()
 {
@@ -652,6 +675,8 @@ void wifiManager::compile()
                { handleRTCSet(); });
     server->on("/logger-list", [this]()
                { getLogFileList(); });
+    server->on("/remove-file", [this]()
+               { deleteFile(); });
     server->on("/read-device-info", [this]()
                { handleReadDeviceInfo(); });
     server->on("/load-logging-file", [this]()
